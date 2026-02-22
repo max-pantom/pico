@@ -1,11 +1,18 @@
 import { callLLM, extractJSON } from '../lib/llm'
-import type { IntentJSON, LayoutNode, RuntimeDesignTokens } from '../types/pipeline'
+import type { IntentJSON, LayoutNode, RuntimeDesignTokens, SceneBlueprint, SceneStrategy } from '../types/pipeline'
 import { buildFirstScreen, getSurfaceDefinition } from './surfaceConfig'
 import type { ScreenContent } from './surfaceConfig'
-import { resolveArchetype, formatArchetypeForPrompt } from './productArchetypes'
+import { resolveArchetype } from './productArchetypes'
 import type { ProductArchetype } from './productArchetypes'
-import { SEED_LIBRARY, pickDivergentSeeds, formatSeedForPrompt } from './designWorlds'
+import { pickDivergentSeeds, pickReplacementSeed, formatSeedForPrompt } from './designWorlds'
 import type { CreativeSeed } from './designWorlds'
+import {
+    pickStrategyForDirection,
+    formatStrategyForPrompt,
+    type CompositionStrategy,
+    COMPOSITION_STRATEGIES,
+} from './compositionStrategies'
+import { sceneDefinitions, suggestStrategy } from './sceneStrategies'
 
 export type { CreativeSeed } from './designWorlds'
 
@@ -42,6 +49,7 @@ export interface Exploration {
     title: string
     philosophy: string
     seed: CreativeSeed
+    blueprint: SceneBlueprint
     tokens: ExplorationTokens
     screen: ScreenContent
     screenLayout: LayoutNode
@@ -52,8 +60,15 @@ type CompositionFamily =
     | 'strict-grid'
     | 'immersive-fullbleed'
     | 'utility-shell'
+    | 'focal-content'
+    | 'split-dominant'
+    | 'dense-panels'
 
 type CreativeRisk = 'safe' | 'balanced' | 'wild'
+
+type DensityLevel = 'compact' | 'comfortable' | 'spacious'
+type AlignmentMode = 'left' | 'center' | 'asymmetric'
+type SpatialRhythm = 'regular' | 'irregular' | 'breathing' | 'dense'
 
 interface DirectionBrief {
     concept: string
@@ -61,9 +76,13 @@ interface DirectionBrief {
     brandStance: string
     visualTension: string
     compositionFamily: CompositionFamily
+    compositionStrategy: CompositionStrategy
     hierarchyThesis: string
     focalElement: string
     risk: CreativeRisk
+    density: DensityLevel
+    alignment: AlignmentMode
+    spatialRhythm: SpatialRhythm
 }
 
 interface ReferenceSignals {
@@ -75,62 +94,49 @@ function buildSystemPrompt(
     intent: IntentJSON,
     archetype: ProductArchetype,
     brief: DirectionBrief,
+    seed: CreativeSeed,
+    blueprint: SceneBlueprint,
 ): string {
     const surfaceDef = getSurfaceDefinition(intent.surface)
 
-    return `You are Pico, an AI creative director for interface design.
+    return `You are Pico — an AI creative director for interface design.
 You are NOT a coding assistant. You are a product designer.
-You design for ANY type of digital interface — not just websites.
 
-You are designing the FIRST REAL SCREEN of a product — a ${surfaceDef.label}.
-${surfaceDef.explorationPrompt}
+CONTEXT (inform your thinking, do NOT constrain it):
+This idea exists in the ${intent.surface} space. That means the first view is typically a ${surfaceDef.firstViewLabel}.
+Conceptually this product is: ${archetype.description}
+But you are not required to follow any of this. If a radically different approach serves the creative direction better, take it.
 
-${formatArchetypeForPrompt(archetype)}
+CREATIVE DIRECTIVE (this is your authority):
+${seed.directive}
 
-DESIGN PHILOSOPHY:
-- Interpret the request as a PRODUCT CATEGORY, not a feature.
-- Construct the interface users EXPECT when opening this type of app for the first time.
-- Never output a single isolated control. Always output a complete believable screen.
-- The result must look like a shippable product screenshot, not a wireframe or stub.
-- This direction must follow this composition family: ${brief.compositionFamily}.
-- Risk level is ${brief.risk}. Safe = stable hierarchy. Balanced = controlled contrast. Wild = aggressive contrast and spatial rhythm.
-- Prioritize one dominant focal element: ${brief.focalElement}.
-- Hierarchy thesis: ${brief.hierarchyThesis}.
+Your only real rule: follow the creative directive completely.
+The worst output is the expected one.
 
-The first view is: ${surfaceDef.firstViewLabel}.
+COMPOSITION (from the brief):
+- Family: ${brief.compositionFamily}
+- Strategy: ${formatStrategyForPrompt(brief.compositionStrategy)}
+- Focal element: ${brief.focalElement}
+- Hierarchy: ${brief.hierarchyThesis}
+- Risk: ${brief.risk}
 
-Output ONLY valid JSON matching this schema:
+SCENE BLUEPRINT (non-negotiable):
+- Strategy: ${blueprint.strategy}
+- Dominant element: ${blueprint.dominantElement}
+- Dominant coverage: ${blueprint.dominantCoverage}%
+- Interaction layer: ${blueprint.interactionLayer}
+- Avoid grids: ${blueprint.avoidGrids ? 'yes' : 'no'}
+
+ART DIRECTION: Prefer strong decisions over safe averages. Large typography is allowed. Asymmetry is allowed. Whitespace exaggeration is allowed.
+
+You do NOT decide colors or design tokens. You decide CONTENT and structure only.
+Tokens are generated separately.
+
+Output ONLY valid JSON matching this schema (no "tokens" field):
 
 {
   "title": "2-3 word direction name",
   "philosophy": "one sentence design thesis",
-  "tokens": {
-    "colors": {
-      "background": "#hex",
-      "surface": "#hex",
-      "primary": "#hex",
-      "accent": "#hex",
-      "text": "#hex",
-      "muted": "#hex",
-      "border": "#hex"
-    },
-    "typography": {
-      "fontFamily": "systemSans | systemSerif | systemMono",
-      "headingSize": "Npx",
-      "headingWeight": "100-900",
-      "headingTracking": "Nem",
-      "bodySize": "Npx"
-    },
-    "spacing": {
-      "heroPadding": "Npx",
-      "headlineMargin": "Npx"
-    },
-    "radius": {
-      "button": "Npx",
-      "card": "Npx"
-    },
-    "shadow": "none | soft | lift | heavy | glow"
-  },
   "screen": {
     "headline": "primary heading or title for this screen",
     "subheadline": "supporting description or subtitle",
@@ -160,7 +166,10 @@ CONTENT RULES:
 - "featureLabels" are feature names, tab labels, or action categories (3-4).
 - ALL content must be realistic and domain-specific. No placeholders like "Item 1" or "Feature A".
 - ALL values must be believable. Stats should have real-looking numbers, not "N/A".
-- The screen must contain enough content to represent ALL required modules from the archetype.`
+- The screen must feel complete and believable. No single isolated control.
+- The dominant element must read as ${blueprint.dominantElement} and clearly support ${blueprint.dominantCoverage}% dominant hero weight.
+- Secondary elements must remain visually subordinate to the dominant element.
+${blueprint.avoidGrids ? '- Avoid equal-width, repeated card-grid framing for hero and secondary scene composition.' : ''}`
 }
 
 const FALLBACK_EXPLORATION_TOKENS: ExplorationTokens = {
@@ -230,6 +239,9 @@ const COMPOSITIONS: CompositionFamily[] = [
     'strict-grid',
     'immersive-fullbleed',
     'utility-shell',
+    'focal-content',
+    'split-dominant',
+    'dense-panels',
 ]
 
 const REFERENCE_LIBRARY: Array<{
@@ -339,7 +351,8 @@ function pickComposition(index: number, count: number, risk: CreativeRisk): Comp
     if (count >= 4) return COMPOSITIONS[index % COMPOSITIONS.length]!
     if (risk === 'wild') return index % 2 === 0 ? 'editorial-asymmetry' : 'immersive-fullbleed'
     if (risk === 'safe') return 'utility-shell'
-    return index % 2 === 0 ? 'strict-grid' : 'editorial-asymmetry'
+    if (count === 2 && index === 1) return 'split-dominant'
+    return index % 2 === 0 ? 'strict-grid' : 'focal-content'
 }
 
 function fallbackBrief(
@@ -347,18 +360,34 @@ function fallbackBrief(
     seed: CreativeSeed,
     risk: CreativeRisk,
     composition: CompositionFamily,
+    strategy: CompositionStrategy,
 ): DirectionBrief {
+    const density: DensityLevel = risk === 'wild' ? 'spacious' : risk === 'safe' ? 'compact' : 'comfortable'
+    const alignment: AlignmentMode = composition === 'editorial-asymmetry' ? 'asymmetric' : composition === 'strict-grid' ? 'left' : 'center'
+    const spatialRhythm: SpatialRhythm = risk === 'wild' ? 'irregular' : risk === 'safe' ? 'regular' : 'breathing'
     return {
         concept: `${intent.domain} designed as ${seed.name}`,
         audienceFrame: intent.primaryUser,
         brandStance: `${seed.family} aesthetic`,
         visualTension: seed.directive.slice(0, 80),
         compositionFamily: composition,
+        compositionStrategy: strategy,
         hierarchyThesis: `Lead with ${intent.coreTasks[0] ?? 'primary action'} and support with clear secondary blocks`,
         focalElement: intent.coreTasks[0] ?? 'primary hero region',
         risk,
+        density,
+        alignment,
+        spatialRhythm,
     }
 }
+
+const VALID_DENSITY = new Set<DensityLevel>(['compact', 'comfortable', 'spacious'])
+const VALID_ALIGNMENT = new Set<AlignmentMode>(['left', 'center', 'asymmetric'])
+const VALID_RHYTHM = new Set<SpatialRhythm>(['regular', 'irregular', 'breathing', 'dense'])
+const VALID_STRATEGIES = new Set<CompositionStrategy>([
+    'statement-first', 'product-first', 'story-first',
+    'atmosphere-first', 'tool-first', 'proof-first',
+])
 
 function parseBrief(raw: string, fallback: DirectionBrief): DirectionBrief {
     const parsed = JSON.parse(extractJSON(raw)) as Partial<DirectionBrief>
@@ -368,6 +397,12 @@ function parseBrief(raw: string, fallback: DirectionBrief): DirectionBrief {
     const risk: CreativeRisk = parsed.risk === 'safe' || parsed.risk === 'balanced' || parsed.risk === 'wild'
         ? parsed.risk
         : fallback.risk
+    const density = VALID_DENSITY.has(parsed.density as DensityLevel) ? parsed.density as DensityLevel : fallback.density
+    const alignment = VALID_ALIGNMENT.has(parsed.alignment as AlignmentMode) ? parsed.alignment as AlignmentMode : fallback.alignment
+    const spatialRhythm = VALID_RHYTHM.has(parsed.spatialRhythm as SpatialRhythm) ? parsed.spatialRhythm as SpatialRhythm : fallback.spatialRhythm
+    const compositionStrategy = VALID_STRATEGIES.has(parsed.compositionStrategy as CompositionStrategy)
+        ? parsed.compositionStrategy as CompositionStrategy
+        : fallback.compositionStrategy
 
     return {
         concept: safeString(parsed.concept, fallback.concept),
@@ -375,9 +410,123 @@ function parseBrief(raw: string, fallback: DirectionBrief): DirectionBrief {
         brandStance: safeString(parsed.brandStance, fallback.brandStance),
         visualTension: safeString(parsed.visualTension, fallback.visualTension),
         compositionFamily: composition,
+        compositionStrategy,
         hierarchyThesis: safeString(parsed.hierarchyThesis, fallback.hierarchyThesis),
         focalElement: safeString(parsed.focalElement, fallback.focalElement),
         risk,
+        density,
+        alignment,
+        spatialRhythm,
+    }
+}
+
+const VALID_INTERACTION_LAYERS = new Set<SceneBlueprint['interactionLayer']>(['inline', 'overlay', 'sidebar', 'bottom'])
+const VALID_SCENE_STRATEGIES = new Set<SceneStrategy>(Object.keys(sceneDefinitions) as SceneStrategy[])
+
+function parseSceneBlueprint(raw: string): SceneBlueprint {
+    const parsed = JSON.parse(extractJSON(raw)) as Partial<SceneBlueprint>
+    const problems: string[] = []
+
+    if (!VALID_SCENE_STRATEGIES.has(parsed.strategy as SceneStrategy)) {
+        problems.push('strategy must be one of the allowed SceneStrategy values')
+    }
+    if (typeof parsed.dominantElement !== 'string' || parsed.dominantElement.trim().length === 0) {
+        problems.push('dominantElement must be a non-empty string')
+    }
+
+    const coverage = Number(parsed.dominantCoverage)
+    if (!Number.isFinite(coverage) || coverage < 70 || coverage > 85) {
+        problems.push('dominantCoverage must be a number between 70 and 85')
+    }
+
+    const secondaryElements = Array.isArray(parsed.secondaryElements)
+        ? parsed.secondaryElements.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        : []
+    if (secondaryElements.length === 0) {
+        problems.push('secondaryElements must include at least one label')
+    }
+
+    if (!VALID_INTERACTION_LAYERS.has(parsed.interactionLayer as SceneBlueprint['interactionLayer'])) {
+        problems.push('interactionLayer must be one of inline | overlay | sidebar | bottom')
+    }
+    if (typeof parsed.avoidGrids !== 'boolean') {
+        problems.push('avoidGrids must be a boolean')
+    }
+
+    if (problems.length > 0) {
+        throw new Error(`Malformed SceneBlueprint JSON: ${problems.join('; ')}`)
+    }
+
+    return {
+        strategy: parsed.strategy as SceneStrategy,
+        dominantElement: parsed.dominantElement!.trim(),
+        dominantCoverage: Math.round(coverage),
+        secondaryElements,
+        interactionLayer: parsed.interactionLayer as SceneBlueprint['interactionLayer'],
+        avoidGrids: parsed.avoidGrids as boolean,
+    }
+}
+
+async function generateSceneBlueprint(
+    intent: IntentJSON,
+    seed: CreativeSeed,
+    brief: DirectionBrief,
+): Promise<SceneBlueprint> {
+    const suggested = suggestStrategy(intent.surface, seed.name)
+    const schemaString = `{
+  "strategy": "immersive-surface" | "object-focus" | "interface-first" | "cinematic-hero" | "editorial-canvas" | "control-dominant",
+  "dominantElement": "string",
+  "dominantCoverage": 70-85,
+  "secondaryElements": ["string", "string", "string"],
+  "interactionLayer": "inline" | "overlay" | "sidebar" | "bottom",
+  "avoidGrids": true | false
+}`
+
+    const systemPrompt = `You are Pico's scene strategist.
+Commit to a single scene strategy before hero generation.
+Output ONLY valid JSON with no markdown and no commentary.
+
+Allowed strategies and guidance:
+${JSON.stringify(sceneDefinitions, null, 2)}
+
+Blueprint schema (must match exactly):
+${schemaString}
+
+Rules:
+- Choose exactly one strategy.
+- dominantCoverage must be an integer between 70 and 85.
+- secondaryElements should list 2-4 concrete subordinate elements.
+- If strategy suggests asymmetry or narrative framing, set avoidGrids to true.
+- Keep the blueprint coherent with product intent and creative directive.`
+
+    const userMessage = `Intent:
+${JSON.stringify(intent, null, 2)}
+
+Seed:
+${JSON.stringify(seed, null, 2)}
+
+Direction brief:
+${JSON.stringify({
+    concept: brief.concept,
+    hierarchyThesis: brief.hierarchyThesis,
+    focalElement: brief.focalElement,
+    compositionFamily: brief.compositionFamily,
+    compositionStrategy: brief.compositionStrategy,
+}, null, 2)}
+
+Suggested strategy: ${suggested}
+
+Return ONLY the SceneBlueprint JSON object.`
+
+    try {
+        const raw = await callLLM(systemPrompt, userMessage)
+        return parseSceneBlueprint(raw)
+    } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        const retryPrompt = `${systemPrompt}\n\nPrevious output failed validation: ${reason}`
+        const retryMessage = `${userMessage}\n\nReturn only JSON that strictly matches the schema.`
+        const retryRaw = await callLLM(retryPrompt, retryMessage)
+        return parseSceneBlueprint(retryRaw)
     }
 }
 
@@ -391,8 +540,16 @@ async function generateDirectionBrief(
 ): Promise<DirectionBrief> {
     const inferredRisk = inferRisk(seed, `${intent.emotionalTone} ${references.principles.join(' ')}`, index)
     const forcedComposition = pickComposition(index, count, inferredRisk)
-    const fallback = fallbackBrief(intent, seed, inferredRisk, forcedComposition)
+    const forcedStrategy = pickStrategyForDirection(index, count as 1 | 2 | 4)
+    const fallback = fallbackBrief(intent, seed, inferredRisk, forcedComposition, forcedStrategy)
     const prompt = `You are Pico's creative director. Build a concise direction brief.
+You decide DESIGN DECISIONS first: hierarchy, focal point, density, alignment, spatial rhythm.
+You do NOT decide colors or tokens — those emerge later from the design universe.
+
+COMPOSITION STRATEGY: Each direction must choose a different composition strategy.
+The strategy determines hierarchy and layout BEFORE styling decisions.
+Strategy answers: "What is the FIRST IMPRESSION of this product?"
+
 Return ONLY valid JSON.
 
 Schema:
@@ -401,17 +558,22 @@ Schema:
   "audienceFrame": string,
   "brandStance": string,
   "visualTension": string,
-  "compositionFamily": "editorial-asymmetry" | "strict-grid" | "immersive-fullbleed" | "utility-shell",
+  "compositionFamily": "editorial-asymmetry" | "strict-grid" | "immersive-fullbleed" | "utility-shell" | "focal-content" | "split-dominant" | "dense-panels",
+  "compositionStrategy": "statement-first" | "product-first" | "story-first" | "atmosphere-first" | "tool-first" | "proof-first",
   "hierarchyThesis": string,
   "focalElement": string,
-  "risk": "safe" | "balanced" | "wild"
+  "risk": "safe" | "balanced" | "wild",
+  "density": "compact" | "comfortable" | "spacious",
+  "alignment": "left" | "center" | "asymmetric",
+  "spatialRhythm": "regular" | "irregular" | "breathing" | "dense"
 }
 
 Rules:
-- Composition must be distinct from generic shell-first layouts.
-- Wild risk means bold asymmetry or full-bleed emphasis.
+- Creative directors change hierarchy, focal point, density, alignment, spatial rhythm — NOT colors first.
+- Composition must be distinct from generic hero + 3 cards + CTA patterns.
+- compositionStrategy determines what dominates: statement-first = giant typography; product-first = product UI; proof-first = stats lead; etc.
+- Prefer strong decisions over safe averages. Large typography, asymmetry, whitespace exaggeration are allowed.
 - Keep it product-believable for archetype modules.
-- Do not describe code, only design intent.
 `
 
     const userMessage = `Intent:
@@ -426,9 +588,11 @@ ${JSON.stringify(seed, null, 2)}
 Reference principles:
 ${references.principles.join(' | ') || 'none'}
 
-Required seed values:
+Required values (must match exactly):
 - compositionFamily: ${forcedComposition}
+- compositionStrategy: ${forcedStrategy}
 - risk: ${inferredRisk}
+- density, alignment, spatialRhythm: choose based on composition, strategy, and risk
 `
 
     try {
@@ -436,6 +600,26 @@ Required seed values:
         return parseBrief(raw, fallback)
     } catch {
         return fallback
+    }
+}
+
+function applyStrategyToTokens(tokens: ExplorationTokens, strategy: CompositionStrategy): ExplorationTokens {
+    const rules = COMPOSITION_STRATEGIES[strategy]
+    const baseHeading = parsePx(tokens.typography.headingSize)
+    const basePadding = parsePx(tokens.spacing.heroPadding)
+    const scaleMap = { small: 0.75, medium: 1, large: 1.25, huge: 1.6 } as const
+    const mult = scaleMap[rules.headingScale] ?? 1
+    const wsMult = rules.whitespaceMultiplier
+    return {
+        ...tokens,
+        typography: {
+            ...tokens.typography,
+            headingSize: toPx(Math.round(baseHeading * mult), 48),
+        },
+        spacing: {
+            heroPadding: toPx(Math.round(basePadding * wsMult), 48),
+            headlineMargin: toPx(Math.round(parsePx(tokens.spacing.headlineMargin) * wsMult), 16),
+        },
     }
 }
 
@@ -458,6 +642,76 @@ function applyRiskToTokens(tokens: ExplorationTokens, risk: CreativeRisk): Explo
     return next
 }
 
+async function generateTokens(
+    intent: IntentJSON,
+    seed: CreativeSeed,
+    archetype: ProductArchetype,
+    brief: DirectionBrief,
+): Promise<ExplorationTokens> {
+    const seedBlock = formatSeedForPrompt(seed)
+    const systemPrompt = `You are Pico's token generator. Tokens are the PHYSICS of a design universe.
+They emerge from intent + seed + archetype. You invent a NEW design system every time.
+Never reuse tokens globally. Each exploration gets its own universe.
+
+${seedBlock}
+
+Rules:
+- Output ONLY valid JSON with a "tokens" object.
+- Colors, typography, spacing, radius, shadow must embody the seed directive.
+- Respect PROHIBITED rules in the seed.
+- The result must feel coherent with: ${brief.concept}
+- Density ${brief.density}, alignment ${brief.alignment}, rhythm ${brief.spatialRhythm} inform spacing.`
+
+    const userMessage = `Intent: ${JSON.stringify(intent, null, 2)}
+Archetype: ${archetype.description}
+Brief: ${JSON.stringify({ concept: brief.concept, brandStance: brief.brandStance, visualTension: brief.visualTension }, null, 2)}
+
+Return ONLY: { "tokens": { "colors": {...}, "typography": {...}, "spacing": {...}, "radius": {...}, "shadow": "..." } }`
+
+    try {
+        const raw = await callLLM(systemPrompt, userMessage)
+        const parsed = JSON.parse(extractJSON(raw)) as { tokens?: ExplorationTokens }
+        if (parsed.tokens && typeof parsed.tokens === 'object') {
+            const t = parsed.tokens
+            const safe: ExplorationTokens = {
+                colors: {
+                    background: safeString(t.colors?.background, '#0b1020'),
+                    surface: safeString(t.colors?.surface, '#121a2f'),
+                    primary: safeString(t.colors?.primary, '#2563eb'),
+                    accent: safeString(t.colors?.accent, '#7c3aed'),
+                    text: safeString(t.colors?.text, '#f8fafc'),
+                    muted: safeString(t.colors?.muted, '#94a3b8'),
+                    border: safeString(t.colors?.border, '#334155'),
+                },
+                typography: {
+                    fontFamily: ['systemSans', 'systemSerif', 'systemMono'].includes(String(t.typography?.fontFamily))
+                        ? t.typography!.fontFamily as ExplorationTokens['typography']['fontFamily']
+                        : 'systemSans',
+                    headingSize: safeString(t.typography?.headingSize, '48px'),
+                    headingWeight: safeString(t.typography?.headingWeight, '800'),
+                    headingTracking: safeString(t.typography?.headingTracking, '-0.02em'),
+                    bodySize: safeString(t.typography?.bodySize, '16px'),
+                },
+                spacing: {
+                    heroPadding: safeString(t.spacing?.heroPadding, '48px'),
+                    headlineMargin: safeString(t.spacing?.headlineMargin, '16px'),
+                },
+                radius: {
+                    button: safeString(t.radius?.button, '999px'),
+                    card: safeString(t.radius?.card, '20px'),
+                },
+                shadow: ['none', 'soft', 'lift', 'heavy', 'glow'].includes(String(t.shadow))
+                    ? t.shadow as ExplorationTokens['shadow']
+                    : 'lift',
+            }
+            const withRisk = applyRiskToTokens(safe, brief.risk)
+            return applyStrategyToTokens(withRisk, brief.compositionStrategy)
+        }
+    } catch { /* fall through */ }
+    const withRisk = applyRiskToTokens(FALLBACK_EXPLORATION_TOKENS, brief.risk)
+    return applyStrategyToTokens(withRisk, brief.compositionStrategy)
+}
+
 function buildDirectedFirstScreen(
     intent: IntentJSON,
     screen: ScreenContent,
@@ -466,7 +720,7 @@ function buildDirectedFirstScreen(
 ): LayoutNode {
     const heroLayout = brief.compositionFamily === 'immersive-fullbleed'
         ? 'fullbleed'
-        : brief.compositionFamily === 'editorial-asymmetry'
+        : brief.alignment === 'asymmetric' || brief.compositionFamily === 'editorial-asymmetry'
             ? 'left-aligned'
             : 'centered'
 
@@ -631,6 +885,145 @@ function buildDirectedFirstScreen(
                     },
                 ],
             }
+        case 'focal-content':
+            return {
+                component: 'Shell',
+                children: [
+                    {
+                        component: 'TopNav',
+                        props: {
+                            title: brand,
+                            links: screen.navItems.slice(0, 4),
+                            ctaLabel: screen.ctaPrimary,
+                        },
+                    },
+                    {
+                        component: 'MainContent',
+                        children: [
+                            {
+                                component: 'Header',
+                                props: {
+                                    title: screen.headline || brand,
+                                    subtitle: brief.hierarchyThesis,
+                                },
+                            },
+                            {
+                                component: 'KPIRow',
+                                props: { items: screen.metrics.slice(0, 4) },
+                            },
+                            {
+                                component: 'Card',
+                                props: { title: brief.focalElement },
+                                children: [
+                                    {
+                                        component: 'ChartBlock',
+                                        props: { type: 'area', title: '' },
+                                    },
+                                ],
+                            },
+                            {
+                                component: 'FeatureGrid',
+                                props: {
+                                    title: brief.concept,
+                                    features: screen.featureLabels.slice(0, 4),
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+        case 'split-dominant':
+            return {
+                component: 'Shell',
+                children: [
+                    {
+                        component: 'MainContent',
+                        children: [
+                            {
+                                component: 'Card',
+                                props: { title: screen.headline || brand },
+                                children: [
+                                    {
+                                        component: 'Header',
+                                        props: { title: screen.headline || brand, subtitle: screen.subheadline },
+                                    },
+                                    {
+                                        component: 'KPIRow',
+                                        props: { items: screen.metrics.slice(0, 3) },
+                                    },
+                                ],
+                            },
+                            {
+                                component: 'ListPanel',
+                                children: screen.navItems.slice(0, 5).map((item, i) => ({
+                                    component: 'NavItem' as const,
+                                    props: { label: item, active: i === 0 },
+                                })),
+                            },
+                            {
+                                component: 'DetailPanel',
+                                children: [
+                                    {
+                                        component: 'ActivityFeed',
+                                        props: { title: 'Recent', events: screen.listItems.slice(0, 4) },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            }
+        case 'dense-panels':
+            return {
+                component: 'Shell',
+                children: [
+                    {
+                        component: 'Sidebar',
+                        children: screen.navItems.slice(0, 6).map((item, i) => ({
+                            component: 'NavItem' as const,
+                            props: { label: item, active: i === 0 },
+                        })),
+                    },
+                    {
+                        component: 'MainContent',
+                        children: [
+                            {
+                                component: 'DenseGrid',
+                                children: [
+                                    {
+                                        component: 'StatBlock',
+                                        props: { title: screen.metrics[0]?.label ?? 'Metric', value: screen.metrics[0]?.value ?? '—' },
+                                    },
+                                    {
+                                        component: 'StatBlock',
+                                        props: { title: screen.metrics[1]?.label ?? 'Metric', value: screen.metrics[1]?.value ?? '—' },
+                                    },
+                                    {
+                                        component: 'StatBlock',
+                                        props: { title: screen.metrics[2]?.label ?? 'Metric', value: screen.metrics[2]?.value ?? '—' },
+                                    },
+                                    {
+                                        component: 'StatBlock',
+                                        props: { title: screen.metrics[3]?.label ?? 'Metric', value: screen.metrics[3]?.value ?? '—' },
+                                    },
+                                ],
+                            },
+                            {
+                                component: 'DataTable',
+                                props: {
+                                    title: brief.focalElement,
+                                    columns: screen.metrics.slice(0, 3).map(m => m.label),
+                                    rows: [screen.metrics.slice(0, 3).map(m => m.value)],
+                                },
+                            },
+                            {
+                                component: 'ActivityFeed',
+                                props: { title: 'Activity', events: screen.listItems.slice(0, 4) },
+                            },
+                        ],
+                    },
+                ],
+            }
         default:
             return buildFirstScreen(intent.surface, screen, brand)
     }
@@ -647,12 +1040,10 @@ function parseExploration(
     intent: IntentJSON,
     archetype: ProductArchetype,
     brief: DirectionBrief,
+    blueprint: SceneBlueprint,
+    tokens: ExplorationTokens,
 ): Exploration {
     const parsed = JSON.parse(extractJSON(raw)) as Record<string, unknown>
-
-    const safeTokens = parsed.tokens && typeof parsed.tokens === 'object'
-        ? parsed.tokens as ExplorationTokens
-        : FALLBACK_EXPLORATION_TOKENS
 
     const screen = parseScreen(parsed.screen, intent)
 
@@ -668,7 +1059,8 @@ function parseExploration(
         title: safeString(parsed.title, seed.name),
         philosophy: safeString(parsed.philosophy, seed.directive),
         seed,
-        tokens: applyRiskToTokens(safeTokens, brief.risk),
+        blueprint,
+        tokens,
         screen: finalScreen,
         screenLayout,
     }
@@ -699,13 +1091,25 @@ async function generateOneExploration(
 ): Promise<Exploration> {
     const brief = await generateDirectionBrief(intent, archetype, seed, references, index, count)
     if (forcedComposition) brief.compositionFamily = forcedComposition
-    const systemPrompt = buildSystemPrompt(intent, archetype, brief)
+
+    const blueprint = await generateSceneBlueprint(intent, seed, brief)
+    const tokens = await generateTokens(intent, seed, archetype, brief)
+
+    const systemPrompt = buildSystemPrompt(intent, archetype, brief, seed, blueprint)
     const seedBlock = formatSeedForPrompt(seed)
-    const userMessage = `Return ONLY valid JSON. No commentary.
+    const userMessage = `Return ONLY valid JSON. No commentary. No "tokens" field — tokens are generated separately.
 
 ${seedBlock}
 
-Director brief:
+Scene blueprint (MUST be obeyed by the generated hero/content hierarchy):
+${JSON.stringify(blueprint, null, 2)}
+
+Hard constraints:
+- Primary hierarchy should emphasize "${blueprint.dominantElement}".
+- Dominant hero framing target is ${blueprint.dominantCoverage}% with secondary support in the remaining space.
+${blueprint.avoidGrids ? '- Avoid equal-card grid framing or repetitive symmetric tile layouts.' : '- Secondary elements can be structured if they remain clearly subordinate.'}
+
+Director brief (design decisions — hierarchy, focal, density, alignment, rhythm):
 ${JSON.stringify(brief, null, 2)}
 
 References:
@@ -717,11 +1121,14 @@ ${JSON.stringify(intent, null, 2)}`
     const raw = await callLLM(systemPrompt, userMessage)
 
     try {
-        return parseExploration(raw, seed, intent, archetype, brief)
+        return parseExploration(raw, seed, intent, archetype, brief, blueprint, tokens)
     } catch {
-        const retryMessage = `Your previous response was not valid JSON. You MUST return ONLY the JSON object matching the schema. No explanation.
+        const retryMessage = `Your previous response was not valid JSON. You MUST return ONLY the JSON object with "title", "philosophy", "screen". No "tokens" field.
 
 ${seedBlock}
+
+Scene blueprint:
+${JSON.stringify(blueprint, null, 2)}
 
 Director brief:
 ${JSON.stringify(brief, null, 2)}
@@ -731,7 +1138,7 @@ ${JSON.stringify(intent, null, 2)}`
         const retryRaw = await callLLM(systemPrompt, retryMessage)
 
         try {
-            return parseExploration(retryRaw, seed, intent, archetype, brief)
+            return parseExploration(retryRaw, seed, intent, archetype, brief, blueprint, tokens)
         } catch {
             const screen = fallbackScreen(intent)
             return {
@@ -739,7 +1146,8 @@ ${JSON.stringify(intent, null, 2)}`
                 title: seed.name,
                 philosophy: seed.directive,
                 seed,
-                tokens: applyRiskToTokens(FALLBACK_EXPLORATION_TOKENS, brief.risk),
+                blueprint,
+                tokens,
                 screen,
                 screenLayout: buildDirectedFirstScreen(intent, screen, intent.domain, brief),
             }
@@ -759,17 +1167,19 @@ function hexBrightness(hex: string): number {
 function validateDivergence(explorations: Exploration[]): boolean {
     if (explorations.length <= 1) return true
 
+    const families = new Set(explorations.map(e => e.seed.family))
+    const minDistinctFamilies = explorations.length >= 4 ? 3 : 2
+    if (families.size < minDistinctFamilies) return false
+
     const bgs = explorations.map(e => hexBrightness(e.tokens.colors.background))
     const fonts = new Set(explorations.map(e => e.tokens.typography.fontFamily))
-    const shadows = new Set(explorations.map(e => e.tokens.shadow))
 
     const bgRange = Math.max(...bgs) - Math.min(...bgs)
     const hasFontVariety = fonts.size >= 2
-    const hasShadowVariety = shadows.size >= 2
     const fingerprints = new Set(explorations.map(e => layoutFingerprint(e.screenLayout)))
     const hasDistinctStructures = fingerprints.size === explorations.length
 
-    return bgRange > 30 && hasFontVariety && hasShadowVariety && hasDistinctStructures
+    return bgRange > 30 && hasFontVariety && hasDistinctStructures
 }
 
 interface CriticScore {
@@ -812,16 +1222,18 @@ async function regenerateForDivergence(
     explorations: Exploration[],
     intent: IntentJSON,
     archetype: ProductArchetype,
-    usedSeeds: CreativeSeed[],
+    _usedSeeds: CreativeSeed[],
     references: ReferenceSignals,
     count: 1 | 2 | 4,
 ): Promise<Exploration[]> {
     if (validateDivergence(explorations) || explorations.length <= 1) return explorations
 
-    const replacementSeed = SEED_LIBRARY.find(s => !usedSeeds.some(active => active.name === s.name)) ?? usedSeeds[0]!
+    const usedFamilies = new Set(explorations.map(e => e.seed.family))
+    const replacementSeed = pickReplacementSeed(usedFamilies)
     const usedFingerprints = new Set(explorations.map(e => layoutFingerprint(e.screenLayout)))
     const forcedComposition = COMPOSITIONS.find(c => {
-        const synthetic = buildDirectedFirstScreen(intent, explorations[0]!.screen, intent.domain, fallbackBrief(intent, replacementSeed, 'wild', c))
+        const brief = fallbackBrief(intent, replacementSeed, 'wild', c, 'statement-first')
+        const synthetic = buildDirectedFirstScreen(intent, explorations[0]!.screen, intent.domain, brief)
         return !usedFingerprints.has(layoutFingerprint(synthetic))
     })
 
@@ -843,7 +1255,7 @@ async function criticRefine(
     explorations: Exploration[],
     intent: IntentJSON,
     archetype: ProductArchetype,
-    usedSeeds: CreativeSeed[],
+    _usedSeeds: CreativeSeed[],
     references: ReferenceSignals,
     count: 1 | 2 | 4,
 ): Promise<Exploration[]> {
@@ -855,7 +1267,8 @@ async function criticRefine(
     }
     if (scores[lowestIndex]!.total >= 72) return explorations
 
-    const replacementSeed = SEED_LIBRARY.find(s => !usedSeeds.some(active => active.name === s.name)) ?? usedSeeds[lowestIndex]!
+    const usedFamilies = new Set(explorations.map(e => e.seed.family))
+    const replacementSeed = pickReplacementSeed(usedFamilies)
     const replacement = await generateOneExploration(
         intent,
         replacementSeed,

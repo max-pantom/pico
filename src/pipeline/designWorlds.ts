@@ -14,240 +14,274 @@ export interface CreativeSeed {
 }
 
 export const SEED_LIBRARY: CreativeSeed[] = [
-
-    // ── EDITORIAL FAMILY ──────────────────────────────
     {
         name: 'luxury-editorial',
         family: 'editorial',
-        directive: `White background. Serif headline, weight 300-400, wide tracking.
-Body text tiny and considered — 11-12px. One gold or deep burgundy accent used once.
-Feels like Vogue, not a startup. Extreme whitespace.
-PROHIBITED: dark backgrounds, heavy weights, electric colors, gradients, rounded shapes.`,
+        directive: `Luxury editorial, calm authority, architecture and silence.
+Typography: refined serif or high-end grotesk, generous tracking, small labels.
+Composition: massive whitespace, asymmetrical restraint, slow hierarchy.
+Color logic: warm off-white, charcoal text, one muted metallic accent used sparingly.
+Details: hairline borders, subtle dividers, no heavy shadows, no loud gradients.
+PROHIBITED: neon, playful rounded UI, loud badges, busy patterns, dense grids, heavy drop shadows.`,
     },
     {
         name: 'newspaper-bold',
         family: 'editorial',
-        directive: `White or off-white background. Condensed serif or slab serif headline.
-Weight 900. Dense layout, multiple text sizes creating hierarchy.
-Feels like a broadsheet newspaper or a protest zine.
-PROHIBITED: dark backgrounds, gradients, rounded corners, friendly language.`,
+        directive: `Newspaper front page energy with bold modern hierarchy.
+Typography: strong serif headlines, tight leading, crisp subheads, small caps labels.
+Composition: column logic, rules and dividers, intentional density with clear scanning.
+Color logic: black, off-white, one accent (deep red or ink blue) used once per screen.
+PROHIBITED: soft gradients, glassmorphism, huge rounded cards, pastel palettes, playful icon sets.`,
     },
     {
         name: 'swiss-grid',
         family: 'editorial',
-        directive: `Pure white. Helvetica-style geometric sans only.
-Type is the grid. Red or black as the only accent.
-Feels like 1960s Swiss International Style poster design.
-PROHIBITED: decorative elements, gradients, serif fonts, warm colors, shadows.`,
+        directive: `Swiss grid precision, typographic rigor, modernist clarity.
+Typography: neutral grotesk, strict scale, consistent baseline rhythm.
+Composition: clear grid, aligned edges, modular blocks, disciplined spacing.
+Color logic: minimal, primarily monochrome, single accent used for focus only.
+PROHIBITED: noisy decoration, random spacing, mixed alignment, inconsistent radii, gimmick effects.`,
     },
     {
         name: 'art-magazine',
         family: 'editorial',
-        directive: `Off-white or pale cream. Mix of very large and very small type.
-Asymmetric layout — nothing centered. One image placeholder, large.
-Feels like Apartamento or Monocle magazine.
-PROHIBITED: dark backgrounds, all-caps headlines, electric colors, CTAs that feel pushy.`,
+        directive: `Art magazine cover as interface, expressive but controlled.
+Typography: large editorial headline, supporting small text, contrast in weights.
+Composition: one dominant element, intentional negative space, curated imbalance.
+Color logic: muted gallery palette, paper tones, one bold art accent.
+PROHIBITED: generic SaaS hero patterns, default card grids, standard nav bars, overly safe layout.`,
     },
 
-    // ── DARK FAMILY ───────────────────────────────────
     {
         name: 'terminal-dark',
         family: 'dark',
-        directive: `Pure black (#000000). Monospace font only. Green or amber accent.
-Text feels like a command line. Dense, technical, no decoration.
-Feels like a Bloomberg terminal or a hacker tool.
-PROHIBITED: serif fonts, rounded shapes, warm colors, friendly language, gradients.`,
+        directive: `Terminal inspired dark UI, data-first, serious tool energy.
+Typography: monospace or mono-sans hybrid, compact sizes, high information density.
+Composition: panels, dividers, rows, dense but readable, clear state indicators.
+Color logic: near-black background, soft gray text, one vivid status accent.
+PROHIBITED: huge marketing headlines, pastel gradients, big rounded soft cards, decorative illustrations.`,
     },
     {
         name: 'deep-space',
         family: 'dark',
-        directive: `Very dark navy or near-black with subtle star/noise texture.
-Type: light weight geometric sans, wide tracking.
-One electric blue or violet accent. Feels infinite and spatial.
-PROHIBITED: warm colors, heavy type weights, white backgrounds, serif fonts.`,
+        directive: `Deep space atmosphere, technical and cinematic.
+Typography: geometric sans, slightly wide tracking, confident headings.
+Composition: layered depth, panels floating with subtle borders, clear focal area.
+Color logic: deep navy to black, subtle spatial gradients, one electric accent.
+PROHIBITED: flat white backgrounds, warm paper palettes, playful rounded buttons, cluttered grids.`,
     },
     {
         name: 'noir-cinema',
         family: 'dark',
-        directive: `Deep charcoal (#1A1A1A). High contrast.
-Typography: italic serif or condensed sans. Dramatic.
-Feels like a film poster from the 1940s or a luxury whiskey brand.
-PROHIBITED: bright colors, friendly rounded shapes, tech aesthetic, gradients.`,
+        directive: `Noir cinema mood, high contrast, dramatic lighting.
+Typography: elegant serif or condensed sans, strong hierarchy, confident restraint.
+Composition: large hero, deep shadows, spotlight focus, minimal UI chrome.
+Color logic: black, off-black, ivory text, one gold or crimson accent.
+PROHIBITED: bright cheerful palettes, cartoon icons, bubbly radii, dense dashboards.`,
     },
     {
         name: 'obsidian-minimal',
         family: 'dark',
-        directive: `Near-black background (#0C0C0C). White type only, weight 300.
-One hairline border as the only decorative element.
-Extreme restraint. Feels like a luxury fashion brand's digital presence.
-PROHIBITED: color accents, heavy weights, gradients, busy layouts, rounded corners.`,
+        directive: `Obsidian minimal, luxurious dark restraint.
+Typography: modern sans, small labels, refined scale.
+Composition: minimal elements, strong spacing, quiet confidence.
+Color logic: charcoal surfaces, subtle border contrast, tiny accent usage.
+PROHIBITED: heavy glow, neon overload, busy textures, unnecessary gradients, excessive animation.`,
     },
 
-    // ── VIBRANT FAMILY ────────────────────────────────
     {
         name: 'electric-pop',
         family: 'vibrant',
-        directive: `Background: electric lime (#CCFF00), hot coral, or vivid cyan.
-Not dark. Not white. Saturated and committed.
-Black type on vivid background. Feels like a rave flyer or streetwear drop.
-PROHIBITED: dark backgrounds, gradients, serif fonts, corporate language.`,
+        directive: `Electric pop, bold contemporary energy, creator internet culture.
+Typography: heavy rounded sans, big confident headings, playful microcopy.
+Composition: chunky blocks, confident contrast, clear CTA dominance.
+Color logic: bright saturated background, strong foreground, one contrasting secondary.
+PROHIBITED: grayscale minimalism, timid hierarchy, subtle hairline-only UI, luxury editorial restraint.`,
     },
     {
         name: 'sunset-gradient',
         family: 'vibrant',
-        directive: `Background: warm gradient from coral to deep orange or pink to purple.
-White type floating over it. Weight 700-800. Large and confident.
-Feels like a consumer app launch or a music festival.
-PROHIBITED: flat solid backgrounds, dark moods, corporate structure, monospace.`,
+        directive: `Sunset gradient optimism with premium polish.
+Typography: clean modern sans, friendly confidence, clear hierarchy.
+Composition: spacious hero, gradient atmosphere, crisp panels above.
+Color logic: warm gradient field, high contrast text, restrained secondary accents.
+PROHIBITED: harsh black-white only, terminal aesthetics, brutalist overlap, overly dense layouts.`,
     },
     {
         name: 'neon-night',
         family: 'vibrant',
-        directive: `Dark background (#0A0A0F) with neon pink and cyan accents.
-Type glows slightly. Feels like Tokyo at night or a cyberpunk aesthetic.
-PROHIBITED: warm colors, serif fonts, minimal restraint, white backgrounds.`,
+        directive: `Neon night city energy, nightlife tech, high voltage.
+Typography: sharp sans, confident headings, tight buttons, strong emphasis.
+Composition: dark base with neon accents, glowing separators, punchy components.
+Color logic: near-black with neon cyan, magenta, lime used strategically.
+PROHIBITED: warm paper tones, soft craft textures, grayscale corporate SaaS, timid accents.`,
     },
     {
         name: 'candy-system',
         family: 'vibrant',
-        directive: `Soft pastel background — baby blue, mint, lavender, or blush.
-Type: rounded, friendly, weight 600-700. Large and approachable.
-Feels like Duolingo or a Gen Z consumer app. Joyful.
-PROHIBITED: dark backgrounds, serif fonts, aggressive language, corporate tone.`,
+        directive: `Candy system UI, playful but systematic, bright and clean.
+Typography: rounded sans, readable sizes, friendly hierarchy.
+Composition: modular cards with clear grouping, friendly spacing.
+Color logic: bright pastels with strong contrast text, one saturated anchor color.
+PROHIBITED: brutalist raw overlap, ultra-dark noir, overly minimal monochrome, heavy editorial serif dominance.`,
     },
 
-    // ── MINIMAL FAMILY ────────────────────────────────
     {
         name: 'developer-minimal',
         family: 'minimal',
-        directive: `White or #FAFAFA background. Geometric sans, weight 400-500.
-Type is small and precise — 12-13px body. Gray scale only.
-Feels like Linear, Vercel, or Raycast. Functional beauty.
-PROHIBITED: gradients, warm colors, large heroic type, emotional language, shadows.`,
+        directive: `Developer minimal, modern tool clarity, quiet competence.
+Typography: neutral sans or mono-sans, compact scale, precise labels.
+Composition: clean grid, functional panels, minimal decoration.
+Color logic: near-white or near-black with one reserved accent.
+PROHIBITED: decorative gradients, loud color fields, giant marketing headlines, playful icon chaos.`,
     },
     {
         name: 'zen-white',
         family: 'minimal',
-        directive: `Pure white. Maximum whitespace. One element on screen at a time.
-Type: thin weight (200-300), wide tracking. Nothing competes.
-Feels like Muji or a Japanese product company. Silence as design.
-PROHIBITED: multiple competing elements, bold weights, colors, gradients, busy layouts.`,
+        directive: `Zen white, calm breathing room, maximum readability.
+Typography: clean sans, soft weights, stable hierarchy.
+Composition: large whitespace, few elements, gentle rhythm.
+Color logic: whites and warm grays, single calm accent.
+PROHIBITED: dense dashboards, heavy borders, loud saturation, harsh contrast blocks.`,
     },
     {
         name: 'monochrome-pro',
         family: 'minimal',
-        directive: `White background, black type, no color whatsoever.
-Every element sized by importance, not convention.
-Feels like a serious design studio portfolio.
-PROHIBITED: any color including accents, gradients, decorative elements, rounded shapes.`,
+        directive: `Monochrome pro, crisp and editorial-lite, premium neutrality.
+Typography: modern grotesk, confident weights, precise scale.
+Composition: sharp alignment, disciplined spacing, minimal surfaces.
+Color logic: grayscale with one functional accent only.
+PROHIBITED: neon palettes, playful rounded candy UI, heavy shadows, noisy textures.`,
+    },
+    {
+        name: 'ink-schematic',
+        family: 'minimal',
+        directive: `Ink schematic, blueprint-like clarity, diagrammatic UI language.
+Typography: mono labels, technical small text, clear headings.
+Composition: outlines, grids, precise spacing, schematic feel.
+Color logic: off-white, ink black, one blueprint accent (blue or green).
+PROHIBITED: soft gradients, glass blur, playful shapes, luxury gold accents, heavy drop shadows.`,
     },
 
-    // ── WARM FAMILY ───────────────────────────────────
     {
         name: 'craft-studio',
         family: 'warm',
-        directive: `Warm off-white or cream (#F5F0E8). Serif or rounded sans.
-Weight 400-500. Feels handmade, considered, slow.
-Like a Scandinavian design studio or a high-end food brand.
-PROHIBITED: dark backgrounds, electric colors, heavy weights, tech aesthetic, all-caps.`,
+        directive: `Craft studio warmth, tactile, human, handmade polish.
+Typography: serif for headings or warm sans, comfortable sizes.
+Composition: cozy sections, generous padding, subtle texture feel.
+Color logic: warm neutrals, clay accents, soft contrast with readable text.
+PROHIBITED: neon cyberpunk, terminal dark panels, brutalist overlap, cold sterile minimalism.`,
     },
     {
         name: 'terracotta-earth',
         family: 'warm',
-        directive: `Warm terracotta, ochre, or burnt sienna as the dominant color.
-Natural. Organic. Type: serif with generous leading.
-Feels like a sustainable brand or artisan food company.
-PROHIBITED: cold colors, dark backgrounds, tech aesthetic, heavy geometric type.`,
+        directive: `Terracotta earth, grounded and premium, calm warmth.
+Typography: refined serif or warm grotesk, stable hierarchy.
+Composition: layered sections, soft cards, clear CTA but not aggressive.
+Color logic: terracotta, sand, olive accents with strong readable text.
+PROHIBITED: pure black backgrounds, neon accents, glassmorphism, high-tech sci-fi styling.`,
     },
     {
         name: 'warm-dark',
         family: 'warm',
-        directive: `Deep warm brown (#1A0F0A) or very dark burgundy background.
-Cream or warm white type. Gold accent. Feels like aged whiskey or leather.
-Rich, premium, tactile. Not tech.
-PROHIBITED: cold tones, electric colors, clean geometric shapes, startup language.`,
+        directive: `Warm dark, candlelit premium mood, intimate and calm.
+Typography: elegant serif headings, readable sans body.
+Composition: deep surfaces with warm highlights, quiet hierarchy.
+Color logic: espresso, bronze, warm ivory text, minimal accent usage.
+PROHIBITED: cold neon glows, sterile white pages, playful candy colors, brutalist raw typography.`,
     },
     {
-        name: 'golden-hour',
+        name: 'paper-notebook',
         family: 'warm',
-        directive: `Warm amber or honey-tinted off-white background.
-Type: humanist serif or warm sans, weight 400-500. Rich golden accent.
-Everything feels lit by late afternoon sun. Cozy, elevated, intentional.
-PROHIBITED: cold blues, dark backgrounds, sharp geometric type, tech language.`,
+        directive: `Paper notebook feel, thoughtful, personal, writing-friendly.
+Typography: readable serif or friendly sans, subtle emphasis.
+Composition: notebook sections, gentle dividers, light structure.
+Color logic: paper background, graphite text, small ink accent.
+PROHIBITED: harsh tech panels, neon colors, heavy shadows, loud marketing hero blocks.`,
     },
 
-    // ── EXPRESSIVE FAMILY ─────────────────────────────
     {
         name: 'brutalist-raw',
         family: 'expressive',
-        directive: `Stark white OR aggressive solid color (yellow, red).
-Typography breaks convention: extreme size contrast, intentional asymmetry.
-Text may overlap. Nothing is centered safely.
-PROHIBITED: safe layouts, subtle colors, professional polish, rounded corners.`,
+        directive: `Brutalist raw, intentionally disruptive, anti-template.
+Typography: huge contrast, oversized headings, unexpected alignment.
+Composition: asymmetric blocks, edge-to-edge sections, intentional tension.
+Color logic: stark backgrounds with aggressive accent blocks.
+PROHIBITED: safe centered hero, polite spacing everywhere, generic SaaS card grids, subtle-only aesthetic.`,
     },
     {
         name: 'maximalist',
         family: 'expressive',
-        directive: `Everything is large. Multiple type sizes competing.
-Rich color. Dense. Feels like a poster that demands to be read.
-The opposite of minimal. Celebrates visual noise with intention.
-PROHIBITED: whitespace as a value, restraint, one-color palettes, minimal layouts.`,
+        directive: `Maximalist, layered, rich, energetic but controlled.
+Typography: bold display headings with smaller dense supporting text.
+Composition: layered panels, badges, rich sectioning, high visual variety.
+Color logic: multiple accents with clear hierarchy and readable text.
+PROHIBITED: minimal monochrome, excessive whitespace only, timid hierarchy, one-note layouts.`,
     },
     {
         name: 'glitch-digital',
         family: 'expressive',
-        directive: `Dark background with intentional digital artifacts as aesthetic.
-Type feels slightly displaced or corrupted. RGB split effect implied.
-Electric. Feels like digital art or a music visualizer.
-PROHIBITED: clean polished rendering, warm colors, serif fonts, corporate structure.`,
+        directive: `Glitch digital, cyber artifact vibe, experimental interface.
+Typography: sharp sans or mono, occasional distorted emphasis, strong hierarchy.
+Composition: cut panels, offset layers, subtle scanline or glitch accents.
+Color logic: dark base with sharp digital accents, controlled noise.
+PROHIBITED: warm craft palettes, luxury editorial softness, overly clean corporate minimalism.`,
     },
     {
-        name: 'protest-poster',
+        name: 'poster-typography',
         family: 'expressive',
-        directive: `High contrast, black and red on white or inverse.
-Type is huge, condensed, uppercase. Message-driven layout.
-Feels like a political broadside or punk album cover. Raw urgency.
-PROHIBITED: subtlety, pastels, friendly rounded shapes, gentle language, gradients.`,
+        directive: `Poster typography, graphic design as UI, big type first.
+Typography: headline dominates, supporting copy minimal and sharp.
+Composition: strong grid breaks, intentional negative space, bold blocks.
+Color logic: minimal palette, one punch accent used decisively.
+PROHIBITED: generic nav + hero + three cards pattern, tiny timid headings, purely functional tool layout.`,
     },
 
-    // ── GLASS / SPATIAL FAMILY ────────────────────────
     {
         name: 'glass-premium',
         family: 'spatial',
-        directive: `Deep navy or dark purple with mesh gradient overlay.
-Frosted glass card surface floating over it — translucent, blurred.
-Type: light weight, geometric, wide tracking.
-PROHIBITED: flat solid surfaces, serif fonts, warm colors, heavy weights.`,
+        directive: `Glass premium, depth and atmosphere, high fidelity surfaces.
+Typography: modern sans, light weights, confident headings.
+Composition: layered glass panels over atmospheric background, clear focal plane.
+Color logic: deep gradient field, glass highlights, restrained accent.
+PROHIBITED: flat paper-only aesthetic, brutalist raw overlap, noisy maximalism, harsh grid density.`,
     },
     {
         name: 'aurora-gradient',
         family: 'spatial',
-        directive: `Dark background with a multi-color aurora gradient (green, teal, violet).
-Type: white, light weight, appears to float above the color field.
-Feels like a high-end SaaS product or Apple's spatial computing aesthetic.
-PROHIBITED: flat backgrounds, warm colors, heavy type, serif fonts.`,
+        directive: `Aurora gradient space, calm luminous depth, premium futuristic.
+Typography: geometric sans, slightly wide tracking, elegant hierarchy.
+Composition: floating sections, soft depth cues, spacious layout.
+Color logic: aurora gradients with high contrast type, minimal extra accents.
+PROHIBITED: newspaper dividers, craft textures, terminal panels, aggressive brutalist blocks.`,
     },
     {
-        name: 'depth-layers',
+        name: 'museum-gallery',
         family: 'spatial',
-        directive: `Near-black base with stacked translucent panels at different depths.
-Subtle blur and shadow create z-axis hierarchy. Content lives on glass cards.
-Feels like visionOS or a spatial interface prototype.
-PROHIBITED: flat layouts, warm colors, serif fonts, heavy borders, solid backgrounds.`,
+        directive: `Museum gallery, curated objects in space, quiet presence.
+Typography: refined sans, small labels, confident headings.
+Composition: large negative space, spotlight cards, curated grouping.
+Color logic: neutral gallery tones with one tasteful accent.
+PROHIBITED: dense dashboards, loud saturation, glitch effects, busy decorative elements.`,
     },
 ]
 
-function groupByFamily(): Record<SeedFamily, CreativeSeed[]> {
-    const map: Partial<Record<SeedFamily, CreativeSeed[]>> = {}
-    for (const seed of SEED_LIBRARY) {
-        if (!map[seed.family]) map[seed.family] = []
-        map[seed.family]!.push(seed)
+function groupByFamily(seeds: CreativeSeed[]) {
+    const map = new Map<SeedFamily, CreativeSeed[]>()
+    for (const s of seeds) {
+        const list = map.get(s.family) ?? []
+        list.push(s)
+        map.set(s.family, list)
     }
-    return map as Record<SeedFamily, CreativeSeed[]>
+    return map
 }
 
-function pickRandom<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)]!
+function randInt(maxExclusive: number) {
+    return Math.floor(Math.random() * maxExclusive)
+}
+
+function pickOne<T>(arr: T[]): T {
+    return arr[randInt(arr.length)]!
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -260,31 +294,41 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function pickDivergentSeeds(count: 1 | 2 | 4): CreativeSeed[] {
-    const byFamily = groupByFamily()
-    const families = Object.keys(byFamily) as SeedFamily[]
+    const byFamily = groupByFamily(SEED_LIBRARY)
+    const families = Array.from(byFamily.keys())
 
     if (count === 1) {
-        const family = pickRandom(families)
-        return [pickRandom(byFamily[family])]
+        const fam = pickOne(families)
+        return [pickOne(byFamily.get(fam)!)]
     }
 
     if (count === 2) {
-        return [
-            pickRandom(byFamily.editorial),
-            pickRandom(byFamily.dark),
-        ]
+        const editorial = byFamily.get('editorial')
+        const dark = byFamily.get('dark')
+        if (!editorial?.length || !dark?.length) {
+            const shuffled = shuffle(families)
+            const a = pickOne(byFamily.get(shuffled[0]!)!)
+            const b = pickOne(byFamily.get(shuffled[1]!)!)
+            return [a, b]
+        }
+        return [pickOne(editorial), pickOne(dark)]
     }
 
-    const shuffled = shuffle(families)
-    return shuffled.slice(0, 4).map(f => pickRandom(byFamily[f]))
+    const pickedFamilies = shuffle(families).slice(0, 4)
+    return pickedFamilies.map(fam => pickOne(byFamily.get(fam)!))
+}
+
+export function pickReplacementSeed(usedFamilies: Set<string>): CreativeSeed {
+    const candidates = SEED_LIBRARY.filter(s => !usedFamilies.has(s.family))
+    if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)]!
+    return SEED_LIBRARY[Math.floor(Math.random() * SEED_LIBRARY.length)]!
 }
 
 export function formatSeedForPrompt(seed: CreativeSeed): string {
-    return `CREATIVE SEED: ${seed.name} (family: ${seed.family})
+    return `CREATIVE SEED
+name: ${seed.name}
+family: ${seed.family}
 
-${seed.directive}
-
-You MUST follow every instruction above AND respect every PROHIBITED rule.
-This direction should feel like it was designed by a world-class studio with an unmistakable point of view.
-Do not soften, average, or compromise the aesthetic. Commit fully.`
+DIRECTIVE
+${seed.directive}`
 }

@@ -46,6 +46,7 @@ export type InteractionModel = 'click-to-drill' | 'inline-expand' | 'modal' | 's
 export type CardMorphology = 'flat' | 'elevated' | 'bordered' | 'panel'
 export type TableMorphology = 'dense' | 'striped' | 'minimal'
 export type ButtonMorphology = 'label' | 'icon-label' | 'pill'
+export type { SceneBlueprint, SceneStrategy } from '../pipeline/sceneStrategies'
 
 export interface RuntimeDesignTokens {
     colors: {

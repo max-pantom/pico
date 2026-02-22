@@ -1,7 +1,8 @@
 import { expandExploration } from '../pipeline/expansionEngine'
 import type { Exploration } from '../pipeline/explorationEngine'
 import { usePicoStore } from '../store/picoStore'
-import { ScreenPreview, surfaceAspectRatio } from '../renderer/ScreenPreview'
+import { ScreenPreview } from '../renderer/ScreenPreview'
+import { surfaceAspectRatio } from '../renderer/surfaceRender'
 import type { InterfaceSurface } from '../types/pipeline'
 
 export function ExplorationGrid() {

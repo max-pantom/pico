@@ -1,45 +1,109 @@
 import { callLLM, extractJSON } from '../lib/llm'
-import type { IntentJSON, LayoutNode } from '../types/pipeline'
+import type { IntentJSON, InterfaceSurface, LayoutNode } from '../types/pipeline'
 import type { Exploration } from './explorationEngine'
 import { getSurfaceDefinition } from './surfaceConfig'
-import { resolveArchetype, formatArchetypeForPrompt } from './productArchetypes'
+import { resolveArchetype } from './productArchetypes'
+
+const SURFACE_COMPONENTS: Record<InterfaceSurface, string[]> = {
+    marketing: [
+        'HeroSection', 'FeatureGrid', 'CTASection', 'FooterSection',
+        'Card', 'Header', 'Badge', 'Divider', 'Button', 'MetricCard',
+    ],
+    analytical: [
+        'Header', 'KPIRow', 'ChartBlock', 'DataTable', 'ActivityFeed',
+        'Tabs', 'Card', 'MetricCard', 'StatBlock', 'Badge', 'Divider', 'Button',
+    ],
+    mobile: [
+        'Header', 'Card', 'Button', 'Badge', 'Tabs',
+        'ActivityFeed', 'MetricCard', 'Divider', 'Input', 'FormGroup',
+    ],
+    workspace: [
+        'Header', 'Tabs', 'Card', 'ChartBlock', 'DataTable',
+        'ActivityFeed', 'Button', 'Badge', 'Divider', 'Input', 'FormGroup',
+    ],
+    immersive: [
+        'HeroSection', 'Card', 'KPIRow', 'Badge', 'Button',
+        'WorkGrid', 'Divider', 'MetricCard', 'StatBlock',
+    ],
+}
+
+const SURFACE_STRUCTURE_GUIDANCE: Record<InterfaceSurface, string> = {
+    marketing: `Generate vertical page sections that scroll naturally: hero → features → social proof → pricing → call-to-action → footer.
+Each section is a standalone block with its own background treatment and content.
+This should read like a polished product marketing page.`,
+
+    analytical: `Generate dashboard content panels for the MAIN content area (no sidebar or top nav — those are provided by the shell).
+Start with a Header, then KPI summary, then charts and data tables, then activity feeds.
+Content must be domain-specific data — real-looking metrics, chart labels, and table columns relevant to the product.
+DO NOT generate marketing sections like HeroSection, CTASection, or FooterSection.`,
+
+    mobile: `Generate MOBILE APP SCREENS — not website sections.
+Each top-level object represents a SCREEN in the app (like Home, Detail, Camera, Gallery, Settings).
+Wrap each screen's content in a Card with a title that names the screen.
+Use mobile-appropriate patterns:
+- Large touch-friendly buttons (not tiny links)
+- Simple lists and cards (not data tables or charts)
+- One primary action per screen
+- Bottom navigation is handled by the shell — don't generate navigation components
+DO NOT generate HeroSection, CTASection, FooterSection, KPIRow, DataTable, or ChartBlock.
+DO NOT generate website-style sections. This is an APP, not a website.
+All content must relate to the actual app functionality — not server metrics or marketing copy.`,
+
+    workspace: `Generate workspace PANELS for the main editor area (no sidebar or toolbar — those are provided by the shell).
+Start with a Header showing the current document/project name.
+Then show the primary canvas/editor content as a large Card.
+Then show property panels, output/preview areas, or secondary tools.
+Content should reflect the actual tool functionality.
+DO NOT generate marketing sections like HeroSection, CTASection, or FooterSection.`,
+
+    immersive: `Generate a full-bleed immersive experience.
+Start with a large HeroSection as the main viewport/scene.
+Then overlay-style panels: HUD status (KPIRow), action grid (WorkGrid), inventory/selection panels.
+Everything should feel atmospheric and game-like — not corporate or marketing.
+DO NOT generate FooterSection or CTASection.`,
+}
 
 function buildExpansionPrompt(intent: IntentJSON): string {
     const surfaceDef = getSurfaceDefinition(intent.surface)
     const archetype = resolveArchetype(intent)
+    const allowedComponents = SURFACE_COMPONENTS[intent.surface]
+    const structureGuide = SURFACE_STRUCTURE_GUIDANCE[intent.surface]
 
     return `You are Pico in execution mode.
 You are a product designer, NOT a coding assistant.
-You design for ANY type of digital interface — not just websites.
 
 You are expanding a chosen direction into a complete ${surfaceDef.label}.
+
+CONTEXT (inform your thinking — surface awareness kicks in here, but softly):
+This is a ${surfaceDef.label}. The first view is typically ${surfaceDef.firstViewLabel}.
 ${surfaceDef.expansionPrompt}
 
-${formatArchetypeForPrompt(archetype)}
+Consider what makes sense for this context — but do not abandon the chosen visual DNA.
+Let the visual identity win if there's a conflict.
 
-The user already chose a visual direction with a first screen preview.
-You must BUILD ON that foundation — keep the same content style and add more sections.
-The expanded page must feel like a COMPLETE PRODUCT, not a collection of components.
+Archetype: ${archetype.description}
+Modules that may matter: ${archetype.requiredModules.join(', ')}. Represent them where the visual identity allows.
 
-Target sections for this surface:
+STRUCTURAL GUIDE (gentle context, not command):
+${structureGuide}
+
+Target sections (consider these, adapt as the direction demands):
 ${surfaceDef.expansionSections.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
+ALLOWED COMPONENTS (use ONLY these):
+${allowedComponents.join(', ')}
+
 Rules:
-- Preserve the chosen visual DNA and content tone from the first screen.
-- Keep section hierarchy coherent and surface-appropriate.
-- Include realistic, domain-specific content. No placeholders.
-- Every required module from the archetype must be represented somewhere in the expanded view.
-- Adapt component usage to the interface category:
-  - Marketing: hero, features, testimonials, pricing, CTA, footer
-  - Analytical: KPI rows, charts, data tables, activity feeds, filters
-  - Mobile: stacked cards, list views, action buttons, navigation bars
-  - Immersive: full-bleed sections, overlays, status bars, spatial layouts
-  - Workspace: toolbars, canvas areas, side panels, property inspectors
+- Preserve the chosen visual DNA and content tone from the first screen completely.
+- Generate sections that serve BOTH the ${intent.surface} context AND the chosen visual identity.
+- If there's a conflict, the visual identity wins.
+- ALL content must be realistic, domain-specific, and relevant to the actual product.
 - Return ONLY valid JSON. No explanation, no markdown.
 
 Return a JSON array of section objects. Each object has:
-- "component": one of Header, HeroSection, WorkGrid, FeatureGrid, CTASection, FooterSection, Card, MetricCard, KPIRow, DataTable, ActivityFeed, Tabs, Button, Badge, Divider
-- "props": object with component-specific props and realistic data`
+- "component": one of ${allowedComponents.join(', ')}
+- "props": object with component-specific props and realistic data
+- "children": optional array of child component objects`
 }
 
 function extractChildren(parsed: unknown): LayoutNode[] | null {
@@ -92,7 +156,7 @@ function fallbackExpandedLayout(exploration: Exploration, intent: IntentJSON): L
     const s = exploration.screen
     const surfaceDef = getSurfaceDefinition(intent.surface)
 
-    const surfaceFallbacks: Record<string, LayoutNode[]> = {
+    const surfaceFallbacks: Record<InterfaceSurface, LayoutNode[]> = {
         marketing: [
             {
                 component: 'HeroSection',
@@ -146,20 +210,36 @@ function fallbackExpandedLayout(exploration: Exploration, intent: IntentJSON): L
         ],
         mobile: [
             {
-                component: 'Header',
-                props: { title: s.headline, subtitle: s.subheadline },
-            },
-            {
-                component: 'KPIRow',
-                props: { items: s.metrics.slice(0, 4) },
+                component: 'Card',
+                props: { title: s.featureLabels[0] || 'Home' },
+                children: [
+                    {
+                        component: 'Header',
+                        props: { title: s.headline, subtitle: s.subheadline },
+                    },
+                    {
+                        component: 'Button',
+                        props: { label: s.ctaPrimary },
+                    },
+                ],
             },
             {
                 component: 'Card',
-                props: { title: s.featureLabels[0] || 'Actions' },
+                props: { title: s.featureLabels[1] || 'Browse' },
+                children: [
+                    {
+                        component: 'ActivityFeed',
+                        props: { title: 'Recent', events: s.listItems.slice(0, 4) },
+                    },
+                ],
             },
             {
-                component: 'ActivityFeed',
-                props: { title: 'Recent', events: s.listItems.slice(0, 5) },
+                component: 'Card',
+                props: { title: s.featureLabels[2] || 'Settings' },
+                children: s.navItems.slice(0, 4).map(item => ({
+                    component: 'Button' as const,
+                    props: { label: item },
+                })),
             },
         ],
         immersive: [
@@ -169,7 +249,7 @@ function fallbackExpandedLayout(exploration: Exploration, intent: IntentJSON): L
                     headline: s.headline,
                     subheadline: s.subheadline,
                     ctaPrimary: s.ctaPrimary,
-                    backgroundTreatment: s.backgroundTreatment,
+                    backgroundTreatment: 'mesh',
                     layout: 'fullbleed',
                 },
             },
@@ -194,6 +274,10 @@ function fallbackExpandedLayout(exploration: Exploration, intent: IntentJSON): L
             {
                 component: 'Card',
                 props: { title: 'Canvas' },
+                children: [{
+                    component: 'ChartBlock' as const,
+                    props: { type: 'area', title: '' },
+                }],
             },
             {
                 component: 'ActivityFeed',
@@ -204,31 +288,104 @@ function fallbackExpandedLayout(exploration: Exploration, intent: IntentJSON): L
 
     return {
         component: 'MainContent',
-        children: surfaceFallbacks[intent.surface] ?? surfaceFallbacks.marketing!,
+        children: surfaceFallbacks[intent.surface] ?? surfaceFallbacks.marketing,
+    }
+}
+
+function wrapInSurfaceShell(
+    content: LayoutNode,
+    exploration: Exploration,
+    intent: IntentJSON,
+): LayoutNode {
+    const s = exploration.screen
+    const contentChildren = content.children ?? [content]
+
+    switch (intent.surface) {
+        case 'analytical':
+            return {
+                component: 'Shell',
+                children: [
+                    {
+                        component: 'Sidebar',
+                        children: s.navItems.slice(0, 6).map((item, i) => ({
+                            component: 'NavItem' as const,
+                            props: { label: item, active: i === 0 },
+                        })),
+                    },
+                    {
+                        component: 'MainContent',
+                        children: contentChildren,
+                    },
+                ],
+            }
+        case 'workspace':
+            return {
+                component: 'Shell',
+                children: [
+                    {
+                        component: 'Sidebar',
+                        children: s.navItems.slice(0, 6).map((item, i) => ({
+                            component: 'NavItem' as const,
+                            props: { label: item, active: i === 0 },
+                        })),
+                    },
+                    {
+                        component: 'MainContent',
+                        children: contentChildren,
+                    },
+                ],
+            }
+        case 'mobile':
+        case 'marketing':
+        case 'immersive':
+        default:
+            return {
+                component: 'MainContent',
+                children: contentChildren,
+            }
     }
 }
 
 export async function expandExploration(exploration: Exploration, intent: IntentJSON): Promise<LayoutNode> {
     const systemPrompt = buildExpansionPrompt(intent)
+    const surfaceDef = getSurfaceDefinition(intent.surface)
     const tokenSnapshot = {
         colors: exploration.tokens.colors,
         typography: exploration.tokens.typography,
         radius: exploration.tokens.radius,
         shadow: exploration.tokens.shadow,
     }
-    const userMessage = `Return ONLY a JSON array of sections.\n\nChosen direction:\nTitle: ${exploration.title}\nPhilosophy: ${exploration.philosophy}\nCreative seed: ${exploration.seed.directive}\n\nVisual DNA (use these to inform content tone and density):\n${JSON.stringify(tokenSnapshot, null, 2)}\n\nFirst screen content (build on this foundation):\n${JSON.stringify(exploration.screen, null, 2)}\n\nInterface surface: ${intent.surface} (${getSurfaceDefinition(intent.surface).label})\n\nProduct intent:\n${JSON.stringify(intent, null, 2)}`
+    const userMessage = `Return ONLY a JSON array of sections.
+
+Chosen direction: ${exploration.seed.name} — ${exploration.title}
+Philosophy: ${exploration.philosophy}
+
+Creative seed (this is your authority — honor it completely):
+${exploration.seed.directive}
+
+Visual DNA (use these to inform content tone and density):
+${JSON.stringify(tokenSnapshot, null, 2)}
+
+First screen content (build on this foundation):
+${JSON.stringify(exploration.screen, null, 2)}
+
+Context: This is being expanded as a ${surfaceDef.label}. Consider what makes sense for that context — but let the ${exploration.seed.name} visual identity win if there's a conflict.
+
+Product intent:
+${JSON.stringify(intent, null, 2)}`
 
     try {
         const firstRaw = await callLLM(systemPrompt, userMessage)
         const tree = asLayoutTree(firstRaw)
-        if (tree) return tree
+        if (tree) return wrapInSurfaceShell(tree, exploration, intent)
     } catch { /* retry below */ }
 
     try {
-        const retryRaw = await callLLM(systemPrompt, `Your previous output was not usable. Return ONLY a valid JSON array of section objects, each with "component" and "props" keys.\n\n${userMessage}`)
+        const retryRaw = await callLLM(systemPrompt, `Your previous output was not usable. Return ONLY a valid JSON array of section objects, each with "component" and "props" keys. ALLOWED COMPONENTS: ${SURFACE_COMPONENTS[intent.surface].join(', ')}.\n\n${userMessage}`)
         const tree = asLayoutTree(retryRaw)
-        if (tree) return tree
+        if (tree) return wrapInSurfaceShell(tree, exploration, intent)
     } catch { /* fallback below */ }
 
-    return fallbackExpandedLayout(exploration, intent)
+    const fallback = fallbackExpandedLayout(exploration, intent)
+    return wrapInSurfaceShell(fallback, exploration, intent)
 }

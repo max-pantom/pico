@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutRenderer } from './LayoutRenderer'
 import { TokenInjector } from './TokenInjector'
 import { explorationToRuntimeTokens } from '../pipeline/explorationEngine'
 import { buildTokensFromRuntime } from '../pipeline/tokenBuilder'
 import { deriveDecisions } from '../pipeline/deriveDecisions'
 import type { Exploration } from '../pipeline/explorationEngine'
 import type { InterfaceSurface } from '../types/pipeline'
-
-const SURFACE_RENDER: Record<InterfaceSurface, { w: number; h: number }> = {
-    marketing:  { w: 1280, h: 800 },
-    analytical: { w: 1440, h: 900 },
-    mobile:     { w: 390, h: 844 },
-    workspace:  { w: 1440, h: 900 },
-    immersive:  { w: 1280, h: 720 },
-}
+import { HeroRenderer } from './HeroRenderer'
+import { SURFACE_RENDER } from './surfaceRender'
 
 interface Props {
     exploration: Exploration
@@ -74,21 +67,12 @@ export function ScreenPreview({ exploration, surface }: Props) {
                         transformOrigin: 'top left',
                         pointerEvents: 'none',
                     }}
-                >
-                    <TokenInjector tokens={resolvedTokens}>
-                        <LayoutRenderer
-                            node={exploration.screenLayout}
-                            tokens={resolvedTokens}
-                            decisions={decisions}
-                        />
-                    </TokenInjector>
+                    >
+                        <TokenInjector tokens={resolvedTokens}>
+                            <HeroRenderer exploration={exploration} tokens={resolvedTokens} />
+                        </TokenInjector>
                 </div>
             )}
         </div>
     )
-}
-
-export function surfaceAspectRatio(surface: InterfaceSurface): string {
-    const { w, h } = SURFACE_RENDER[surface]
-    return `${w}/${h}`
 }
