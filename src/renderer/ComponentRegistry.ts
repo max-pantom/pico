@@ -5,6 +5,10 @@ import { PageContent } from './components/PageContent'
 import { ListPanel } from './components/ListPanel'
 import { DetailPanel } from './components/DetailPanel'
 import { DenseGrid } from './components/DenseGrid'
+import { HeroSection } from './components/HeroSection'
+import { FeatureGrid } from './components/FeatureGrid'
+import { CTASection } from './components/CTASection'
+import { FooterSection } from './components/FooterSection'
 import { Header } from './components/Header'
 import { NavItem } from './components/NavItem'
 import { MainContent } from './components/MainContent'
@@ -32,6 +36,10 @@ export const ComponentRegistry: Record<ComponentName, React.ComponentType<any>> 
     ListPanel,
     DetailPanel,
     DenseGrid,
+    HeroSection,
+    FeatureGrid,
+    CTASection,
+    FooterSection,
     Header,
     NavItem,
     MainContent,

@@ -89,6 +89,10 @@ COMPONENT MORPHOLOGY:
 RULES:
 1. Return ONLY valid JSON, no markdown formatting.
 2. The "layoutStrategy" must be one of: "sidebar-main", "top-nav-content", "split-panel", "dense-grid", "canvas".
+   - If productType is "landing", layoutStrategy MUST be "top-nav-content"
+   - If productType is "landing", density MUST be "spacious"
+   - If productType is "landing", navigationPosition MUST be "top"
+   - If productType is "landing", interactionModel MUST be "click-to-drill" or "inline-expand"
 3. The "navigationPosition" must be one of: "left-rail", "top", "bottom", "none".
 4. The "density" must be one of: "compact", "comfortable", "spacious".
 5. The "visualTone" must be one of: "clinical", "minimal", "bold", "playful", "editorial", "stripe", "linear", "vercel", "bloomberg", "notion", "duolingo", "apple-health".

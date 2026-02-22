@@ -126,6 +126,42 @@ function hydrateDataTables(nodes: unknown, mockData: DomainMockData): LayoutNode
 }
 
 export function prepareMainChildren(intent: IntentJSON, decisions: DesignDecisions, mainChildren: LayoutNode[]): LayoutNode[] {
+    if (intent.productType === 'landing') {
+        return [
+            {
+                component: 'HeroSection',
+                props: {
+                    title: `${intent.domain} for ${intent.primaryUser}`,
+                    subtitle: `A ${intent.emotionalTone} experience focused on ${intent.coreTasks.slice(0, 2).join(' and ')}`,
+                    ctaLabel: 'Get started',
+                    secondaryCtaLabel: 'See how it works',
+                },
+            },
+            {
+                component: 'FeatureGrid',
+                props: {
+                    title: 'What you can do',
+                    features: decisions.hierarchyFlow.slice(0, 4),
+                },
+            },
+            {
+                component: 'CTASection',
+                props: {
+                    title: 'Ready to try it?',
+                    subtitle: 'Launch a guided setup and invite your team in minutes.',
+                    ctaLabel: 'Start now',
+                },
+            },
+            {
+                component: 'FooterSection',
+                props: {
+                    brand: intent.domain,
+                    links: decisions.hierarchyFlow.slice(0, 5),
+                },
+            },
+        ]
+    }
+
     const mockData = getMockData(intent.domain)
     const enriched = hydrateDataTables(mainChildren, mockData)
 
@@ -203,7 +239,7 @@ export function buildLayout(intent: IntentJSON, decisions: DesignDecisions, main
         }
     }
 
-    if (decisions.layoutStrategy === 'top-nav-content') {
+    if (intent.productType === 'landing' || decisions.layoutStrategy === 'top-nav-content') {
         return {
             component: 'Shell',
             children: [
@@ -211,8 +247,8 @@ export function buildLayout(intent: IntentJSON, decisions: DesignDecisions, main
                     component: 'TopNav',
                     props: {
                         title: intent.domain,
-                        links: hierarchy,
-                        ctaLabel: 'Start',
+                        links: hierarchy.length > 0 ? hierarchy : ['Home', 'Features', 'Pricing', 'Contact'],
+                        ctaLabel: intent.productType === 'landing' ? 'Get started' : 'Start',
                     },
                 },
                 {
