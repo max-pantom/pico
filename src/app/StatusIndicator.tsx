@@ -21,10 +21,10 @@ export function StatusIndicator({ mode }: { mode: PicoMode }) {
                         ? 'bg-red-400'
                         : pulse
                             ? 'bg-emerald-400 animate-pulse'
-                            : 'bg-gray-500'
+                            : 'bg-neutral-500'
                 }`}
             />
-            <span className={`text-xs ${isError ? 'text-red-400' : 'text-gray-400'}`}>
+            <span className={`text-xs ${isError ? 'text-red-400' : 'text-neutral-400'}`}>
                 {label}
             </span>
         </div>

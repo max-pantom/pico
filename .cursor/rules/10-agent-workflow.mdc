@@ -1,0 +1,38 @@
+---
+description: Implementation workflow and code quality defaults
+alwaysApply: true
+---
+
+# Agent Workflow Defaults
+
+Follow `AGENTS.md` as the primary repo guide.
+
+## Commands
+
+- Install: `npm install`
+- Dev: `npm run dev`
+- Lint: `npm run lint`
+- Build (includes type-check): `npm run build`
+- Preview: `npm run preview`
+
+Current testing status:
+
+- No test runner is configured.
+- No `npm test` script exists.
+
+If tests are introduced, prefer single-test execution first (Vitest/Jest), then full suite.
+
+## Coding Standards
+
+- Use TypeScript strict-safe patterns; avoid `any`.
+- Prefer `import type` for type-only imports.
+- Keep semicolon-free and single-quote style consistent with surrounding files.
+- Preserve established architecture boundaries (`src/app`, `src/pipeline`, `src/renderer`, `src/store`).
+- Keep diffs focused; do not perform broad refactors unless explicitly requested.
+
+## Error Handling
+
+- Fail fast on malformed external/LLM output.
+- Use actionable error messages.
+- Surface user-facing errors through store state (for example `setError`).
+- Do not silently swallow exceptions.

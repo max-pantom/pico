@@ -13,7 +13,14 @@ export function TokenInjector({ tokens, children }: Props) {
     }, {}) as CSSProperties
 
     return (
-        <div style={{ ...style, fontFamily: 'var(--font-family)', color: 'var(--color-text)' }}>
+        <div
+            style={{
+                ...style,
+                fontFamily: 'var(--font-family)',
+                color: 'var(--color-text)',
+            }}
+            className="antialiased"
+        >
             {children}
         </div>
     )

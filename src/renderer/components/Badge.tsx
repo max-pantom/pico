@@ -4,31 +4,23 @@ import { asText } from '../safeValue'
 interface Props {
     tokens: ResolvedTokens
     label: string
-    variant?: 'success' | 'warning' | 'error' | 'neutral'
+    variant?: 'success' | 'warning' | 'error' | 'neutral' | 'info'
 }
 
 export function Badge({ tokens, label, variant = 'neutral' }: Props) {
     const safeLabel = asText(label, 'status')
 
-    let colorStyle = ''
-    switch (variant) {
-        case 'success':
-            colorStyle = 'bg-emerald-100 text-emerald-800'
-            break
-        case 'warning':
-            colorStyle = 'bg-amber-100 text-amber-800'
-            break
-        case 'error':
-            colorStyle = 'bg-rose-100 text-rose-800'
-            break
-        case 'neutral':
-        default:
-            colorStyle = `${tokens.tone.surface} ${tokens.tone.text} border ${tokens.tone.border}`
-            break
+    const colorStyles: Record<string, string> = {
+        success: tokens.status.successBg,
+        warning: tokens.status.warningBg,
+        error: tokens.status.errorBg,
+        info: tokens.status.infoBg,
+        neutral: `bg-[var(--color-surface-alt)] ${tokens.tone.muted}`,
     }
 
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${tokens.shape.badge} ${colorStyle}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium ${tokens.shape.badge} ${colorStyles[variant] || colorStyles.neutral}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
             {safeLabel}
         </span>
     )

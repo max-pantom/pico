@@ -1,42 +1,36 @@
 import React from 'react'
 import type { ResolvedTokens } from '../../types/pipeline'
 import { asText } from '../safeValue'
+import { IconElement } from './IconElement'
 
 interface Props {
     tokens: ResolvedTokens
     title?: string
+    icon?: string
     children?: React.ReactNode
 }
 
-export function Card({ tokens, title, children }: Props) {
+export function Card({ tokens, title, icon, children }: Props) {
     const safeTitle = asText(title)
-    let cardStyle = `${tokens.tone.card} ${tokens.density.card} ${tokens.shape.card}`
+    const morphology = tokens.morphology.cards
 
-    // Apply morphological overrides
-    switch (tokens.morphology.cards) {
-        case 'flat':
-            cardStyle = `${tokens.tone.surface} ${tokens.density.card} ${tokens.shape.card}`
-            break
-        case 'elevated':
-            cardStyle = `bg-white dark:bg-gray-800 ${tokens.density.card} ${tokens.shape.card} shadow-xl border-t border-white/20 dark:border-white/5`
-            break
-        case 'bordered':
-            cardStyle = `bg-transparent ${tokens.density.card} ${tokens.shape.card} border-2 ${tokens.tone.border}`
-            break
-        case 'panel':
-            cardStyle = `${tokens.tone.card} ${tokens.density.card} w-full` // panels are flush, not rounded
-            break
-        default:
-            cardStyle += ` ${tokens.tone.shadow} transition-shadow duration-300 hover:shadow-md`
+    const cardStyles: Record<string, string> = {
+        flat: `bg-[var(--color-surface)] border ${tokens.tone.border}`,
+        elevated: `bg-[var(--color-surface)] shadow-lg shadow-black/10 border border-white/[0.06]`,
+        bordered: `bg-transparent border-2 ${tokens.tone.border}`,
+        panel: `bg-[var(--color-surface)] border ${tokens.tone.border} bg-gradient-to-br from-[var(--color-surface-alt)]/30 to-transparent`,
     }
 
-    const isPanel = tokens.morphology.cards === 'panel'
+    const cardStyle = cardStyles[morphology] || cardStyles.flat
 
     return (
-        <div className={cardStyle}>
+        <div className={`${cardStyle} ${tokens.density.card} ${tokens.shape.card} transition-all duration-300 hover:shadow-md`}>
             {safeTitle && (
-                <div className={isPanel ? `bg-black/5 dark:bg-white/5 -mx-3 -mt-3 mb-3 p-3 border-b ${tokens.tone.border}` : ''}>
-                    <h3 className={`${tokens.typography.subheading} ${tokens.tone.text} ${isPanel ? 'mb-0' : 'mb-2'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                    {icon && (
+                        <IconElement name={icon} size={16} className={tokens.tone.muted} />
+                    )}
+                    <h3 className={`${tokens.typography.subheading} ${tokens.tone.text}`}>
                         {safeTitle}
                     </h3>
                 </div>

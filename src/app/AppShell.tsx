@@ -8,7 +8,7 @@ interface AppShellProps {
 
 export function AppShell({ canvas, promptBar }: AppShellProps) {
     return (
-        <div className="min-h-dvh flex bg-gray-950 text-white">
+        <div className="h-dvh flex overflow-hidden bg-neutral-950 text-neutral-100">
             <Sidebar />
             <div className="flex-1 min-w-0 flex flex-col">
                 {canvas}

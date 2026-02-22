@@ -1,7 +1,5 @@
 import type { ResolvedTokens } from '../../types/pipeline'
 import { asStringArray } from '../safeValue'
-// Note: Normally Tabs require state to switch panels. Since V4 handles functional state,
-// for V3 this is a visual implementation only to organize dense dashboards statically.
 
 interface Props {
     tokens: ResolvedTokens
@@ -15,25 +13,29 @@ export function Tabs({ tokens, tabs, activeTab = 0, children }: Props) {
 
     return (
         <div className="w-full flex flex-col space-y-4">
-            <div className={`flex space-x-4 border-b ${tokens.tone.border}`}>
+            <div className={`flex gap-1 border-b ${tokens.tone.border} pb-px`}>
                 {safeTabs.map((tab, i) => {
                     const isActive = i === activeTab
                     return (
                         <button
                             key={tab}
                             className={`
-                                pb-2 text-sm font-medium transition-colors
-                                ${isActive ? `${tokens.colors.primaryText} border-b-2 border-current` : `${tokens.tone.muted} hover:${tokens.tone.text}`}
+                                relative px-3 py-2 text-sm font-medium transition-all duration-200 rounded-t-lg
+                                ${isActive
+                                    ? `${tokens.tone.text} bg-[var(--color-surface-alt)]/50`
+                                    : `${tokens.tone.muted} hover:${tokens.tone.text} hover:bg-[var(--color-surface-alt)]/30`
+                                }
                             `}
-                            style={isActive ? { color: tokens.colors.primaryBg.replace('bg-', '') } : {}} // Hack to use bg color as text for active border
                         >
                             {tab}
+                            {isActive && (
+                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)] rounded-full" />
+                            )}
                         </button>
                     )
                 })}
             </div>
-            {/* For V3 mock purposes, we just render the children block entirely (usually the first tab's content) */}
-            <div className="pt-2">
+            <div className="pt-1">
                 {children}
             </div>
         </div>

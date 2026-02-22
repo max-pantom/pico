@@ -2,23 +2,40 @@ import type { DesignDecisions, ResolvedTokens, RuntimeDesignTokens } from '../ty
 
 const DEFAULT_RUNTIME_TOKENS: RuntimeDesignTokens = {
     colors: {
-        background: '#f8fafc',
-        surface: '#ffffff',
-        primary: '#2563eb',
-        accent: '#7c3aed',
-        text: '#0f172a',
-        muted: '#64748b',
-        border: '#e2e8f0',
+        background: '#0a0a0b',
+        surface: '#141416',
+        surfaceAlt: '#1c1c1f',
+        primary: '#6366f1',
+        accent: '#8b5cf6',
+        text: '#f0f0f3',
+        muted: '#71717a',
+        border: '#27272a',
         onPrimary: '#ffffff',
+        success: '#22c55e',
+        warning: '#f59e0b',
+        error: '#ef4444',
+        info: '#3b82f6',
+        gradientFrom: '#6366f1',
+        gradientVia: '#8b5cf6',
+        gradientTo: '#ec4899',
+        chart1: '#6366f1',
+        chart2: '#8b5cf6',
+        chart3: '#06b6d4',
+        chart4: '#22c55e',
+        chart5: '#f59e0b',
     },
     typography: {
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        displayFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        monoFamily: 'JetBrains Mono, ui-monospace, monospace',
         baseSize: '14px',
+        displaySize: '48px',
         headingWeight: '700',
-        headingTracking: '-0.02em',
+        headingTracking: '-0.025em',
+        scaleRatio: '1.25',
     },
     spacing: {
-        cardPadding: '16px',
+        cardPadding: '20px',
         sectionGap: '24px',
         navItemPadding: '8px 12px',
     },
@@ -29,8 +46,8 @@ const DEFAULT_RUNTIME_TOKENS: RuntimeDesignTokens = {
         badge: '999px',
     },
     shadow: {
-        card: '0 1px 3px rgba(15, 23, 42, 0.08)',
-        elevated: '0 12px 28px rgba(15, 23, 42, 0.14)',
+        card: '0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.12)',
+        elevated: '0 20px 40px rgba(0,0,0,0.3), 0 8px 16px rgba(0,0,0,0.2)',
     },
     layout: {
         sidebarWidth: '260px',
@@ -42,42 +59,64 @@ function isNonEmptyString(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0
 }
 
+function safe(val: unknown, fallback: string): string {
+    return isNonEmptyString(val) ? val : fallback
+}
+
 function withFallback(runtime?: RuntimeDesignTokens): RuntimeDesignTokens {
+    const d = DEFAULT_RUNTIME_TOKENS
     return {
         colors: {
-            background: isNonEmptyString(runtime?.colors.background) ? runtime.colors.background : DEFAULT_RUNTIME_TOKENS.colors.background,
-            surface: isNonEmptyString(runtime?.colors.surface) ? runtime.colors.surface : DEFAULT_RUNTIME_TOKENS.colors.surface,
-            primary: isNonEmptyString(runtime?.colors.primary) ? runtime.colors.primary : DEFAULT_RUNTIME_TOKENS.colors.primary,
-            accent: isNonEmptyString(runtime?.colors.accent) ? runtime.colors.accent : DEFAULT_RUNTIME_TOKENS.colors.accent,
-            text: isNonEmptyString(runtime?.colors.text) ? runtime.colors.text : DEFAULT_RUNTIME_TOKENS.colors.text,
-            muted: isNonEmptyString(runtime?.colors.muted) ? runtime.colors.muted : DEFAULT_RUNTIME_TOKENS.colors.muted,
-            border: isNonEmptyString(runtime?.colors.border) ? runtime.colors.border : DEFAULT_RUNTIME_TOKENS.colors.border,
-            onPrimary: isNonEmptyString(runtime?.colors.onPrimary) ? runtime.colors.onPrimary : DEFAULT_RUNTIME_TOKENS.colors.onPrimary,
+            background: safe(runtime?.colors.background, d.colors.background),
+            surface: safe(runtime?.colors.surface, d.colors.surface),
+            surfaceAlt: safe(runtime?.colors.surfaceAlt, d.colors.surfaceAlt),
+            primary: safe(runtime?.colors.primary, d.colors.primary),
+            accent: safe(runtime?.colors.accent, d.colors.accent),
+            text: safe(runtime?.colors.text, d.colors.text),
+            muted: safe(runtime?.colors.muted, d.colors.muted),
+            border: safe(runtime?.colors.border, d.colors.border),
+            onPrimary: safe(runtime?.colors.onPrimary, d.colors.onPrimary!),
+            success: safe(runtime?.colors.success, d.colors.success),
+            warning: safe(runtime?.colors.warning, d.colors.warning),
+            error: safe(runtime?.colors.error, d.colors.error),
+            info: safe(runtime?.colors.info, d.colors.info),
+            gradientFrom: safe(runtime?.colors.gradientFrom, d.colors.gradientFrom),
+            gradientVia: safe(runtime?.colors.gradientVia, d.colors.gradientVia),
+            gradientTo: safe(runtime?.colors.gradientTo, d.colors.gradientTo),
+            chart1: safe(runtime?.colors.chart1, d.colors.chart1),
+            chart2: safe(runtime?.colors.chart2, d.colors.chart2),
+            chart3: safe(runtime?.colors.chart3, d.colors.chart3),
+            chart4: safe(runtime?.colors.chart4, d.colors.chart4),
+            chart5: safe(runtime?.colors.chart5, d.colors.chart5),
         },
         typography: {
-            fontFamily: isNonEmptyString(runtime?.typography.fontFamily) ? runtime.typography.fontFamily : DEFAULT_RUNTIME_TOKENS.typography.fontFamily,
-            baseSize: isNonEmptyString(runtime?.typography.baseSize) ? runtime.typography.baseSize : DEFAULT_RUNTIME_TOKENS.typography.baseSize,
-            headingWeight: isNonEmptyString(runtime?.typography.headingWeight) ? runtime.typography.headingWeight : DEFAULT_RUNTIME_TOKENS.typography.headingWeight,
-            headingTracking: isNonEmptyString(runtime?.typography.headingTracking) ? runtime.typography.headingTracking : DEFAULT_RUNTIME_TOKENS.typography.headingTracking,
+            fontFamily: safe(runtime?.typography.fontFamily, d.typography.fontFamily),
+            displayFamily: safe(runtime?.typography.displayFamily, d.typography.displayFamily),
+            monoFamily: safe(runtime?.typography.monoFamily, d.typography.monoFamily),
+            baseSize: safe(runtime?.typography.baseSize, d.typography.baseSize),
+            displaySize: safe(runtime?.typography.displaySize, d.typography.displaySize),
+            headingWeight: safe(runtime?.typography.headingWeight, d.typography.headingWeight),
+            headingTracking: safe(runtime?.typography.headingTracking, d.typography.headingTracking),
+            scaleRatio: safe(runtime?.typography.scaleRatio, d.typography.scaleRatio),
         },
         spacing: {
-            cardPadding: isNonEmptyString(runtime?.spacing.cardPadding) ? runtime.spacing.cardPadding : DEFAULT_RUNTIME_TOKENS.spacing.cardPadding,
-            sectionGap: isNonEmptyString(runtime?.spacing.sectionGap) ? runtime.spacing.sectionGap : DEFAULT_RUNTIME_TOKENS.spacing.sectionGap,
-            navItemPadding: isNonEmptyString(runtime?.spacing.navItemPadding) ? runtime.spacing.navItemPadding : DEFAULT_RUNTIME_TOKENS.spacing.navItemPadding,
+            cardPadding: safe(runtime?.spacing.cardPadding, d.spacing.cardPadding),
+            sectionGap: safe(runtime?.spacing.sectionGap, d.spacing.sectionGap),
+            navItemPadding: safe(runtime?.spacing.navItemPadding, d.spacing.navItemPadding),
         },
         radius: {
-            card: isNonEmptyString(runtime?.radius.card) ? runtime.radius.card : DEFAULT_RUNTIME_TOKENS.radius.card,
-            button: isNonEmptyString(runtime?.radius.button) ? runtime.radius.button : DEFAULT_RUNTIME_TOKENS.radius.button,
-            input: isNonEmptyString(runtime?.radius.input) ? runtime.radius.input : DEFAULT_RUNTIME_TOKENS.radius.input,
-            badge: isNonEmptyString(runtime?.radius.badge) ? runtime.radius.badge : DEFAULT_RUNTIME_TOKENS.radius.badge,
+            card: safe(runtime?.radius.card, d.radius.card),
+            button: safe(runtime?.radius.button, d.radius.button),
+            input: safe(runtime?.radius.input, d.radius.input),
+            badge: safe(runtime?.radius.badge, d.radius.badge),
         },
         shadow: {
-            card: isNonEmptyString(runtime?.shadow.card) ? runtime.shadow.card : DEFAULT_RUNTIME_TOKENS.shadow.card,
-            elevated: isNonEmptyString(runtime?.shadow.elevated) ? runtime.shadow.elevated : DEFAULT_RUNTIME_TOKENS.shadow.elevated,
+            card: safe(runtime?.shadow.card, d.shadow.card),
+            elevated: safe(runtime?.shadow.elevated, d.shadow.elevated),
         },
         layout: {
-            sidebarWidth: isNonEmptyString(runtime?.layout.sidebarWidth) ? runtime.layout.sidebarWidth : DEFAULT_RUNTIME_TOKENS.layout.sidebarWidth,
-            topNavHeight: isNonEmptyString(runtime?.layout.topNavHeight) ? runtime.layout.topNavHeight : DEFAULT_RUNTIME_TOKENS.layout.topNavHeight,
+            sidebarWidth: safe(runtime?.layout.sidebarWidth, d.layout.sidebarWidth),
+            topNavHeight: safe(runtime?.layout.topNavHeight, d.layout.topNavHeight),
         },
     }
 }
@@ -86,14 +125,30 @@ function buildCssVars(runtime: RuntimeDesignTokens): Record<string, string> {
     return {
         '--color-background': runtime.colors.background,
         '--color-surface': runtime.colors.surface,
+        '--color-surface-alt': runtime.colors.surfaceAlt,
         '--color-primary': runtime.colors.primary,
         '--color-accent': runtime.colors.accent,
         '--color-text': runtime.colors.text,
         '--color-muted': runtime.colors.muted,
         '--color-border': runtime.colors.border,
         '--color-on-primary': runtime.colors.onPrimary || '#ffffff',
+        '--color-success': runtime.colors.success,
+        '--color-warning': runtime.colors.warning,
+        '--color-error': runtime.colors.error,
+        '--color-info': runtime.colors.info,
+        '--color-gradient-from': runtime.colors.gradientFrom,
+        '--color-gradient-via': runtime.colors.gradientVia,
+        '--color-gradient-to': runtime.colors.gradientTo,
+        '--color-chart-1': runtime.colors.chart1,
+        '--color-chart-2': runtime.colors.chart2,
+        '--color-chart-3': runtime.colors.chart3,
+        '--color-chart-4': runtime.colors.chart4,
+        '--color-chart-5': runtime.colors.chart5,
         '--font-family': runtime.typography.fontFamily,
+        '--font-display': runtime.typography.displayFamily,
+        '--font-mono': runtime.typography.monoFamily,
         '--font-size-base': runtime.typography.baseSize,
+        '--font-size-display': runtime.typography.displaySize,
         '--font-weight-heading': runtime.typography.headingWeight,
         '--letter-spacing-heading': runtime.typography.headingTracking,
         '--spacing-card': runtime.spacing.cardPadding,
@@ -159,11 +214,13 @@ function buildResolvedTokens(runtimeInput: RuntimeDesignTokens | undefined, opti
             nav: 'px-3 py-2',
         },
         typography: {
-            heading: 'text-2xl font-bold tracking-[var(--letter-spacing-heading)]',
-            subheading: 'text-base font-semibold',
+            display: 'text-[var(--font-size-display)] font-[var(--font-weight-heading)] tracking-[var(--letter-spacing-heading)] leading-[1.1] font-[family-name:var(--font-display)]',
+            heading: 'text-2xl font-bold tracking-[var(--letter-spacing-heading)] leading-tight',
+            subheading: 'text-base font-semibold leading-snug',
             body: 'text-[var(--font-size-base)] leading-relaxed',
             label: 'text-xs font-semibold uppercase tracking-wider',
-            micro: 'text-xs opacity-70',
+            micro: 'text-[11px] leading-snug',
+            mono: 'font-[family-name:var(--font-mono)] text-[13px] tabular-nums',
         },
         shape: {
             button: 'rounded-[var(--radius-button)]',
@@ -180,6 +237,31 @@ function buildResolvedTokens(runtimeInput: RuntimeDesignTokens | undefined, opti
             surfaceBg: 'bg-[var(--color-background)]',
             surfaceBorder: 'border-[var(--color-border)]',
         },
+        status: {
+            success: 'text-[var(--color-success)]',
+            successBg: 'bg-[var(--color-success)]/15 text-[var(--color-success)]',
+            warning: 'text-[var(--color-warning)]',
+            warningBg: 'bg-[var(--color-warning)]/15 text-[var(--color-warning)]',
+            error: 'text-[var(--color-error)]',
+            errorBg: 'bg-[var(--color-error)]/15 text-[var(--color-error)]',
+            info: 'text-[var(--color-info)]',
+            infoBg: 'bg-[var(--color-info)]/15 text-[var(--color-info)]',
+        },
+        gradient: {
+            primary: 'bg-gradient-to-r from-[var(--color-gradient-from)] via-[var(--color-gradient-via)] to-[var(--color-gradient-to)]',
+            subtle: 'bg-gradient-to-br from-[var(--color-gradient-from)]/10 via-transparent to-[var(--color-gradient-to)]/10',
+            hero: 'bg-gradient-to-br from-[var(--color-gradient-from)]/20 via-[var(--color-background)] to-[var(--color-gradient-to)]/20',
+            text: 'bg-gradient-to-r from-[var(--color-gradient-from)] to-[var(--color-gradient-to)] bg-clip-text text-transparent',
+        },
+        chart: {
+            colors: [
+                runtime.colors.chart1,
+                runtime.colors.chart2,
+                runtime.colors.chart3,
+                runtime.colors.chart4,
+                runtime.colors.chart5,
+            ],
+        },
         morphology: {
             cards: options.morphology?.cards || 'flat',
             tables: options.morphology?.tables || 'minimal',
@@ -192,9 +274,14 @@ function buildResolvedTokens(runtimeInput: RuntimeDesignTokens | undefined, opti
 
 export function buildTokensFromRuntime(
     runtimeTokens?: RuntimeDesignTokens,
-    layoutStrategy: DesignDecisions['layoutStrategy'] = 'top-nav-content'
+    layoutStrategy: DesignDecisions['layoutStrategy'] = 'top-nav-content',
+    morphology?: {
+        cards: DesignDecisions['componentMorphology']['cards']
+        tables: DesignDecisions['componentMorphology']['tables']
+        buttons: DesignDecisions['componentMorphology']['buttons']
+    },
 ): ResolvedTokens {
-    return buildResolvedTokens(runtimeTokens, { layoutStrategy })
+    return buildResolvedTokens(runtimeTokens, { layoutStrategy, morphology })
 }
 
 export function buildTokens(decisions: DesignDecisions): ResolvedTokens {

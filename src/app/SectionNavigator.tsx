@@ -35,7 +35,7 @@ export function SectionNavigator({ layout }: { layout: LayoutNode }) {
                 <button
                     key={component}
                     onClick={() => handleClick(component)}
-                    className="text-[11px] text-gray-500 hover:text-white transition-colors text-right px-2 py-1 rounded hover:bg-gray-800/50"
+                    className="text-[11px] text-neutral-500 hover:text-neutral-100 transition-colors text-right px-2 py-1 rounded hover:bg-neutral-800/50"
                 >
                     {SECTION_LABELS[component]}
                 </button>

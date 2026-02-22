@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import type { ResolvedTokens } from '../../types/pipeline'
 
 interface Props {
@@ -8,8 +9,13 @@ interface Props {
 
 export function Shell({ tokens, children }: Props) {
     return (
-        <div className={`${tokens.colors.surfaceBg} ${tokens.layout.wrapper}`}>
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className={`${tokens.colors.surfaceBg} ${tokens.layout.wrapper}`}
+        >
             {children}
-        </div>
+        </motion.div>
     )
 }

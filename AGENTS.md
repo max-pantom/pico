@@ -1,170 +1,166 @@
 # AGENTS.md
 
-This file is guidance for coding agents working in this repository.
-It is based on the current codebase state.
+Guidance for coding agents working in this repository.
+Use this as the default operating guide unless a user prompt overrides it.
 
 ## Project Snapshot
 
-- Stack: React 19 + TypeScript + Vite 7.
+- Stack: React 19 + TypeScript + Vite 7 (`type: module`).
 - Styling: Tailwind CSS v4 utility classes in JSX.
-- State: Zustand (`src/store/engineStore.ts`).
-- LLM integration: Ollama browser client (`src/lib/llm.ts`).
-- App shape: pipeline-driven UI generation and renderer.
+- State: Zustand stores in `src/store/` (`usePicoStore`, `useEngineStore`).
+- LLM integration: Ollama browser SDK via `src/lib/llm.ts`.
+- Main architecture: prompt -> pipeline -> layout JSON -> renderer.
 
-## Rule Files Check
+## Repository Rule Files
 
-- Checked `.cursor/rules/`: not present.
-- Checked `.cursorrules`: not present.
-- Checked `.github/copilot-instructions.md`: not present.
-- No Cursor/Copilot rule files are currently active in-repo.
+Checked for additional agent instructions:
 
-## Install
+- `.cursor/rules/00-product-intent.mdc`: present.
+- `.cursor/rules/10-agent-workflow.mdc`: present.
+- `.cursorrules`: not present.
+- `.github/copilot-instructions.md`: not present.
+
+Cursor rules are present under `.cursor/rules/`.
+
+## Setup And Core Commands
 
 - Install dependencies: `npm install`
-
-## Run / Build / Lint / Preview
-
-- Dev server: `npm run dev`
-- Production build: `npm run build`
-- Lint all files: `npm run lint`
-- Preview built output: `npm run preview`
+- Start dev server: `npm run dev`
+- Production build (includes type-check): `npm run build`
+- Lint entire repo: `npm run lint`
+- Preview production build: `npm run preview`
 
 ## Test Commands (Current State)
 
-- There is currently no configured test runner in `package.json`.
-- There is no `test` script and no project tests under `src/`.
-- Running `npm test` will fail unless a test script is added.
+- No test runner is configured in `package.json` today.
+- No `test` script exists.
+- No `*.test.*` / `*.spec.*` files currently exist in `src/`.
+- `npm test` will fail until a test script is added.
 
-## Single-Test Execution
+## Single-Test Commands (When Tests Are Added)
 
-Because tests are not yet configured, there is no native single-test command today.
+If Vitest is adopted:
 
-If Vitest is added later, use:
-
-- Single file: `npx vitest run src/path/to/file.test.ts`
-- Single test name: `npx vitest run src/path/to/file.test.ts -t "test name"`
+- Run one file: `npx vitest run src/path/to/file.test.ts`
+- Run one test name: `npx vitest run src/path/to/file.test.ts -t "test name"`
 - Watch one file: `npx vitest src/path/to/file.test.ts`
 
-If Jest is added instead, use:
+If Jest is adopted:
 
-- Single file: `npx jest src/path/to/file.test.ts`
-- Single test name: `npx jest src/path/to/file.test.ts -t "test name"`
+- Run one file: `npx jest src/path/to/file.test.ts`
+- Run one test name: `npx jest src/path/to/file.test.ts -t "test name"`
 
-## Type Checking
+## TypeScript And Linting Baseline
 
-- Type checking is enforced during build via `tsc -b`.
-- App config: `tsconfig.app.json`.
-- Node/Vite config: `tsconfig.node.json`.
-- Strict mode is enabled (`"strict": true`).
+- TypeScript project references are in `tsconfig.json`.
+- App TS config: `tsconfig.app.json`.
+- Node/Vite TS config: `tsconfig.node.json`.
+- Strict mode is enabled.
 - `noUnusedLocals` and `noUnusedParameters` are enabled.
-
-## Linting Rules in Effect
-
-- ESLint flat config is used (`eslint.config.js`).
-- Active configs:
+- Build command runs `tsc -b` before `vite build`.
+- ESLint uses flat config in `eslint.config.js`.
+- ESLint extends:
   - `@eslint/js` recommended
   - `typescript-eslint` recommended
   - `eslint-plugin-react-hooks` recommended
-  - `eslint-plugin-react-refresh` vite config
+  - `eslint-plugin-react-refresh` Vite config
 - `dist/` is ignored by ESLint.
+
+## Architecture Map
+
+- `src/app/`: application shell, prompt input flow, exploration/selection UI.
+- `src/pipeline/`: intent parsing, design reasoning, layout/state generation, quality gating.
+- `src/renderer/`: layout renderer and component registry.
+- `src/renderer/components/`: primitive composable UI blocks.
+- `src/store/`: Zustand stores for UI/pipeline state.
+- `src/types/`: domain types for pipeline contracts.
+- `src/lib/`: integrations (LLM client, code export helpers).
 
 ## Code Style Guidelines
 
-Follow existing patterns in nearby files first.
+Follow nearby file style first, then apply these defaults.
 
 ### Imports
 
-- Put imports at top of file.
-- Group by purpose:
+- Keep imports at top of file.
+- Use grouping order:
   1) external packages
   2) internal modules
-  3) type imports (or use inline `import type` where already used)
+  3) type-only imports
 - Prefer `import type` for types.
-- Use relative imports inside `src/` (no path aliases are configured).
-- Match local file convention for extension usage:
+- Use relative imports inside `src/` (no path aliases configured).
+- Preserve local extension style:
   - Most internal imports omit extensions.
-  - `src/main.tsx` currently imports `./app/App.tsx`; preserve surrounding style when editing.
+  - `src/main.tsx` imports `./app/App.tsx`; keep existing local convention when editing.
 
 ### Formatting
 
-- Use semicolon-free style (current codebase standard).
-- Use single quotes for strings.
-- Keep trailing commas where supported (objects, arrays, params).
-- Prefer readable multiline formatting for long JSX attributes.
-- Keep functions small and focused.
-- Do not introduce a new formatter config unless requested.
+- Use semicolon-free style.
+- Prefer single quotes.
+- Keep trailing commas where syntax supports them.
+- Use multiline formatting for long JSX props and object literals.
+- Keep functions focused and reasonably short.
+- Do not introduce new formatter tooling/config unless asked.
 
 ### Types
 
-- Avoid `any`; prefer explicit interfaces/types.
-- Reuse domain types from `src/types/pipeline.ts`.
-- Use union types for constrained values.
-- Type async function returns explicitly when non-trivial.
-- Narrow `unknown` errors before use (`e instanceof Error ? e.message : ...`).
+- Avoid `any`; prefer explicit interfaces/type aliases.
+- Reuse shared types from `src/types/pipeline.ts` when possible.
+- Prefer unions for constrained value sets.
+- Add explicit return types to exported functions and non-trivial async functions.
+- Narrow unknown errors safely (`e instanceof Error ? e.message : String(e)`).
 
-### Naming Conventions
+### Naming
 
-- React components: PascalCase (`PromptInput`, `LayoutRenderer`).
-- Component filenames: PascalCase (`Header.tsx`, `DataTable.tsx`).
-- Functions/variables: camelCase (`runPipeline`, `qualityResult`).
-- Constants: UPPER_SNAKE_CASE for true constants (`MAX_RETRIES`, `SYSTEM_PROMPT`).
-- Store hooks: `useXxxStore` pattern.
-- Type/interface names: PascalCase.
-- String literal unions: kebab-case values where domain-specific.
+- Components and type names: PascalCase.
+- Component filenames: PascalCase (`PromptBar.tsx`, `LayoutRenderer.tsx`).
+- Variables/functions/hooks: camelCase.
+- Store hooks: `useXxxStore`.
+- True constants: UPPER_SNAKE_CASE.
+- Domain string literal values: kebab-case where meaningful.
 
-### React / UI Patterns
+### React And State Patterns
 
 - Use function components.
-- Keep state local unless shared app-wide; shared state goes in Zustand store.
-- Derive simple booleans close to usage (`isRunning`).
-- Keep conditional rendering explicit and readable.
-- Prefer composition through renderer/registry patterns already present.
+- Keep state local unless shared; move shared state to Zustand.
+- Keep derived booleans close to use sites.
+- Prefer explicit conditional rendering over deeply nested ternaries.
+- Extend renderer/registry patterns instead of hardcoding one-off branches.
+
+### Pipeline And Schema Changes
+
+- Preserve pipeline stage semantics (`parsing`, `reasoning`, `building`, `rendering`, etc.).
+- Keep quality retries bounded and deterministic.
+- Keep LLM prompts clear about expected JSON-only responses.
+- When schema contracts change, update both:
+  - TS types in `src/types/pipeline.ts`
+  - Prompt/schema text in parser/reasoner/generator stages
 
 ### Error Handling
 
-- Fail fast on invalid external/LLM responses.
-- Wrap JSON parsing in `try/catch` and throw clear errors with context.
-- Convert unknown thrown values into safe messages.
-- In UI flow, surface errors via store (`setError`) and render user-visible feedback.
-- Do not swallow errors silently.
+- Fail fast on malformed external/LLM outputs.
+- Wrap JSON parsing in `try/catch` with actionable messages.
+- Do not silently swallow exceptions.
+- Surface UI errors through store state (`setError`) so users see failures.
 
-### Pipeline-Specific Guidance
+### Environment And Secrets
 
-- Preserve stage transition semantics (`parsing`, `reasoning`, `building`, `rendering`, etc.).
-- Keep quality gate retry logic deterministic and bounded.
-- Keep prompts as plain template strings and return JSON-only expectations.
-- When changing schema, update both:
-  - Type definitions in `src/types/pipeline.ts`
-  - Prompt schema text in parser/reasoner files
-
-### Environment and Secrets
-
-- Required env vars in use:
-  - `VITE_OLLAMA_API_KEY`
-  - `VITE_OLLAMA_MODEL` (optional override)
+- Required env var: `VITE_OLLAMA_API_KEY`.
+- Optional env var: `VITE_OLLAMA_MODEL`.
 - Never hardcode secrets.
-- Do not commit `.env` contents.
-
-## File/Folder Conventions
-
-- `src/app/`: top-level app shell and interaction entry.
-- `src/pipeline/`: intent/design/token/layout/quality pipeline layers.
-- `src/renderer/`: layout renderer and component registry.
-- `src/renderer/components/`: primitive renderable UI blocks.
-- `src/store/`: Zustand state containers.
-- `src/types/`: shared domain types.
-- `src/lib/`: integrations (LLM client).
+- Never commit `.env` contents or credentials.
 
 ## Agent Workflow Checklist
 
-- Read nearby files before editing; match local style.
-- Run `npm run lint` after meaningful changes.
-- Run `npm run build` when changing types, pipeline logic, or app wiring.
-- If tests are added later, run relevant single tests first, then full suite.
-- Keep diffs focused; avoid opportunistic refactors unless requested.
+- Read nearby files before changing behavior.
+- Keep diffs focused on requested work.
+- Run `npm run lint` after meaningful code changes.
+- Run `npm run build` for type or pipeline changes.
+- If tests are added, run single-test command first, then full suite.
+- Do not perform broad refactors unless requested.
 
-## Known Gaps (As of now)
+## Known Gaps
 
-- No automated test suite is configured yet.
-- No formatter config (Prettier/EditorConfig) is present.
-- No repository-specific Cursor/Copilot instruction files are present.
+- No automated test suite configured yet.
+- No Prettier/EditorConfig configuration currently in repo.
+- No `.cursorrules` file or Copilot instruction file currently exists.

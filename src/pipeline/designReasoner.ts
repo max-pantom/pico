@@ -125,28 +125,73 @@ RULES:
 10. The "hierarchyFlow" is an array of 3-5 string labels that represent the primary navigation items.
 10.5. Include "contentArchitecture" as an ordered list of natural sections for the product type.
 11. Include "runtimeTokens" using real values (hex colors, px sizes, css shadow values), never Tailwind class names.
-12. Include "mockData" with domain-specific table rows, stats, and activity entries.
+12. Include "mockData" with domain-specific table rows, stats, activity, chart data, and KPIs.
+
+COLOR DESIGN RULES:
+- Design a COHESIVE color palette. All colors must work together harmoniously.
+- "success", "warning", "error", "info" are semantic status colors.
+- "gradientFrom", "gradientVia", "gradientTo" define the brand gradient used in CTAs, heroes, and accents.
+- "chart1" through "chart5" are data visualization colors - they must be distinct and readable.
+- "surfaceAlt" is a secondary surface for hover states and alternating rows.
+- Dark themes: background should be very dark (#0a-#14 range), surfaces slightly lighter.
+- Light themes: background should be very light (#f8-#ff range), surfaces white.
+
+TYPOGRAPHY DESIGN RULES:
+- "displayFamily" is for large hero headlines - can be a serif, display, or dramatic font.
+- "monoFamily" is for code, data, numbers - use a good monospace font.
+- "displaySize" controls hero text size: "48px" for comfortable, "56px" for spacious, "40px" for compact.
+- "scaleRatio" controls type scale: "1.2" for compact, "1.25" for comfortable, "1.333" for spacious.
+
+FONT FAMILY PAIRINGS BY TONE:
+- clinical: displayFamily "Inter", fontFamily "Inter"
+- minimal: displayFamily "Inter", fontFamily "Inter"
+- bold: displayFamily "Satoshi, sans-serif", fontFamily "Inter"
+- editorial: displayFamily "Playfair Display, serif", fontFamily "Inter"
+- stripe: displayFamily "Inter", fontFamily "Inter"
+- linear: displayFamily "Inter", fontFamily "Inter"
+- vercel: displayFamily "Inter", fontFamily "Inter"
+- bloomberg: displayFamily "JetBrains Mono, monospace", fontFamily "Inter"
+- notion: displayFamily "Georgia, serif", fontFamily "Inter"
+- duolingo: displayFamily "Nunito, sans-serif", fontFamily "Inter"
+- apple-health: displayFamily "SF Pro Display, Inter", fontFamily "Inter"
 
 RUNTIME TOKENS SCHEMA:
 "runtimeTokens": {
   "colors": {
     "background": "#hex",
     "surface": "#hex",
+    "surfaceAlt": "#hex",
     "primary": "#hex",
     "accent": "#hex",
     "text": "#hex",
     "muted": "#hex",
     "border": "#hex",
-    "onPrimary": "#hex"
+    "onPrimary": "#hex",
+    "success": "#hex",
+    "warning": "#hex",
+    "error": "#hex",
+    "info": "#hex",
+    "gradientFrom": "#hex",
+    "gradientVia": "#hex",
+    "gradientTo": "#hex",
+    "chart1": "#hex",
+    "chart2": "#hex",
+    "chart3": "#hex",
+    "chart4": "#hex",
+    "chart5": "#hex"
   },
   "typography": {
     "fontFamily": "font stack string",
+    "displayFamily": "display font stack string",
+    "monoFamily": "mono font stack string",
     "baseSize": "14px",
+    "displaySize": "48px",
     "headingWeight": "700",
-    "headingTracking": "-0.02em"
+    "headingTracking": "-0.025em",
+    "scaleRatio": "1.25"
   },
   "spacing": {
-    "cardPadding": "16px",
+    "cardPadding": "20px",
     "sectionGap": "24px",
     "navItemPadding": "8px 12px"
   },
@@ -157,8 +202,8 @@ RUNTIME TOKENS SCHEMA:
     "badge": "999px"
   },
   "shadow": {
-    "card": "0 1px 3px rgba(0,0,0,0.1)",
-    "elevated": "0 12px 28px rgba(0,0,0,0.15)"
+    "card": "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)",
+    "elevated": "0 20px 40px rgba(0,0,0,0.15)"
   },
   "layout": {
     "sidebarWidth": "260px",
@@ -173,10 +218,27 @@ MOCK DATA SCHEMA:
     "rows": [["..."], ["..."]]
   },
   "stats": [
-    { "label": "...", "value": "...", "trend": "+4.2%", "trendDirection": "up" }
+    { "label": "...", "value": "...", "trend": "+4.2%", "trendDirection": "up", "icon": "icon-name" }
   ],
-  "activity": ["message|time", "message|time"]
+  "activity": ["message|time", "message|time"],
+  "chartData": [
+    { "name": "Label", "value": 1234, "prev": 1000 }
+  ],
+  "kpis": [
+    { "label": "...", "value": "...", "icon": "icon-name", "progress": 85 }
+  ]
 }
+
+AVAILABLE ICON NAMES (use these exact strings for icon fields):
+activity, alert, archive, arrow-down, arrow-right, arrow-up, arrow-up-right,
+bar-chart, bell, book, box, briefcase, calendar, check, check-circle,
+chevron-down, chevron-right, clock, cloud, code, credit-card, database,
+dollar, download, edit, eye, file, filter, folder, globe, hash, heart,
+home, image, inbox, key, layers, layout, line-chart, link, list, lock,
+logout, mail, map, menu, message, monitor, more, package, pen, pie-chart,
+play, plus, rocket, search, send, server, settings, shield, cart,
+sparkles, star, tag, target, terminal, trending-up, trending-down,
+trophy, upload, user, users, wallet, zap
 
 EXAMPLE OUTPUT:
 {
@@ -184,37 +246,54 @@ EXAMPLE OUTPUT:
   "navigationPosition": "left-rail",
   "density": "comfortable",
   "visualTone": "minimal",
-  "primaryColorFamily": "emerald-600",
+  "primaryColorFamily": "indigo-500",
   "accentUsage": "subtle",
-  "typographyStrategy": "utilitarian",
+  "typographyStrategy": "display",
   "componentMorphology": {
     "cards": "elevated",
-    "tables": "striped",
-    "buttons": "pill",
+    "tables": "minimal",
+    "buttons": "icon-label",
     "inputs": "outlined"
   },
-  "contentArchitecture": ["hero", "value-prop", "features", "cta"],
+  "contentArchitecture": ["overview", "analytics", "activity", "settings"],
   "hierarchyFlow": ["Dashboard", "Projects", "Team", "Settings"],
   "interactionModel": "modal",
   "runtimeTokens": {
     "colors": {
-      "background": "#f8fafc",
-      "surface": "#ffffff",
-      "primary": "#2563eb",
-      "accent": "#7c3aed",
-      "text": "#0f172a",
-      "muted": "#64748b",
-      "border": "#e2e8f0",
-      "onPrimary": "#ffffff"
+      "background": "#09090b",
+      "surface": "#18181b",
+      "surfaceAlt": "#27272a",
+      "primary": "#6366f1",
+      "accent": "#8b5cf6",
+      "text": "#fafafa",
+      "muted": "#71717a",
+      "border": "#27272a",
+      "onPrimary": "#ffffff",
+      "success": "#22c55e",
+      "warning": "#f59e0b",
+      "error": "#ef4444",
+      "info": "#3b82f6",
+      "gradientFrom": "#6366f1",
+      "gradientVia": "#8b5cf6",
+      "gradientTo": "#ec4899",
+      "chart1": "#6366f1",
+      "chart2": "#06b6d4",
+      "chart3": "#22c55e",
+      "chart4": "#f59e0b",
+      "chart5": "#ef4444"
     },
     "typography": {
       "fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif",
+      "displayFamily": "Inter, ui-sans-serif, system-ui, sans-serif",
+      "monoFamily": "JetBrains Mono, ui-monospace, monospace",
       "baseSize": "14px",
+      "displaySize": "48px",
       "headingWeight": "700",
-      "headingTracking": "-0.02em"
+      "headingTracking": "-0.025em",
+      "scaleRatio": "1.25"
     },
     "spacing": {
-      "cardPadding": "16px",
+      "cardPadding": "20px",
       "sectionGap": "24px",
       "navItemPadding": "8px 12px"
     },
@@ -225,8 +304,8 @@ EXAMPLE OUTPUT:
       "badge": "999px"
     },
     "shadow": {
-      "card": "0 1px 3px rgba(15,23,42,0.08)",
-      "elevated": "0 12px 28px rgba(15,23,42,0.14)"
+      "card": "0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.12)",
+      "elevated": "0 20px 40px rgba(0,0,0,0.3), 0 8px 16px rgba(0,0,0,0.2)"
     },
     "layout": {
       "sidebarWidth": "260px",
@@ -235,14 +314,28 @@ EXAMPLE OUTPUT:
   },
   "mockData": {
     "table": {
-      "columns": ["Date", "Revenue", "Source", "Change"],
-      "rows": [["Jan 14", "$48,200", "Direct", "+4.2%"], ["Jan 15", "$52,100", "Organic", "+8.1%"]]
+      "columns": ["Client", "Status", "Revenue", "Last Activity"],
+      "rows": [["Acme Corp", "Active", "$48,200", "2 hours ago"], ["Globex Inc", "Pending", "$12,100", "1 day ago"]]
     },
-    "stats": [{ "label": "Monthly Revenue", "value": "$2.47M", "trend": "+8.3%", "trendDirection": "up" }],
-    "activity": ["Payment settled - Acme|2 min ago", "Alert acknowledged - Ops|6 min ago"]
+    "stats": [
+      { "label": "Revenue", "value": "$2.47M", "trend": "+8.3%", "trendDirection": "up", "icon": "dollar" },
+      { "label": "Users", "value": "12,847", "trend": "+12.1%", "trendDirection": "up", "icon": "users" }
+    ],
+    "activity": ["Payment settled - Acme Corp|2 min ago", "New signup - j.smith@gmail.com|6 min ago"],
+    "chartData": [
+      { "name": "Jan", "value": 4000, "prev": 3200 },
+      { "name": "Feb", "value": 3000, "prev": 3400 },
+      { "name": "Mar", "value": 5000, "prev": 3800 },
+      { "name": "Apr", "value": 4780, "prev": 4200 },
+      { "name": "May", "value": 5890, "prev": 4600 },
+      { "name": "Jun", "value": 6390, "prev": 5000 }
+    ],
+    "kpis": [
+      { "label": "Uptime", "value": "99.97%", "icon": "activity", "progress": 99 },
+      { "label": "Response Time", "value": "142ms", "icon": "clock", "progress": 85 }
+    ]
   }
-}
-`
+}`
 
 export async function reasonDesign(
   intent: IntentJSON,

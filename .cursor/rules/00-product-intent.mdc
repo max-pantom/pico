@@ -1,0 +1,31 @@
+---
+description: Core product objective and alignment checks
+alwaysApply: true
+---
+
+# Product Intent (Always Enforce)
+
+This repository builds an AI-assisted web app generator.
+
+The core flow is:
+
+1. User enters a natural-language product prompt.
+2. Pipeline stages parse intent, reason about design, generate tokens/layout/state.
+3. The app renders a structured layout JSON through the renderer component registry.
+4. Output should be coherent, visually intentional, and exportable as React code.
+
+## Non-Negotiable Goal
+
+Every code change should improve or preserve the ability to convert a prompt into a high-quality, renderable interface with predictable pipeline behavior.
+
+## Alignment Check Before Finishing
+
+For each task, verify all applicable items:
+
+- Does this keep prompt -> pipeline -> layout -> renderer flow intact?
+- Does this preserve stage semantics (`parsing`, `reasoning`, `building`, `rendering`, `done`, `error`)?
+- Does this keep schema contracts synchronized between `src/types/pipeline.ts` and prompt/schema text?
+- Does this avoid degrading quality-gate determinism and bounded retries?
+- Does this keep user-visible failures actionable (no silent error swallowing)?
+
+If a requested change conflicts with this goal, call out the tradeoff clearly in your final message.

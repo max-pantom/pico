@@ -1,3 +1,10 @@
+export type InterfaceSurface =
+    | 'marketing'
+    | 'analytical'
+    | 'mobile'
+    | 'immersive'
+    | 'workspace'
+
 export type ProductType =
     | 'dashboard'
     | 'landing'
@@ -44,20 +51,37 @@ export interface RuntimeDesignTokens {
     colors: {
         background: string
         surface: string
+        surfaceAlt: string
         primary: string
         accent: string
         text: string
         muted: string
         border: string
         onPrimary?: string
+        success: string
+        warning: string
+        error: string
+        info: string
+        gradientFrom: string
+        gradientVia: string
+        gradientTo: string
+        chart1: string
+        chart2: string
+        chart3: string
+        chart4: string
+        chart5: string
     }
     typography: {
         fontFamily: string
+        displayFamily: string
+        monoFamily: string
         baseSize: string
+        displaySize: string
         headingSize?: string
         bodySize?: string
         headingWeight: string
         headingTracking: string
+        scaleRatio: string
     }
     spacing: {
         cardPadding: string
@@ -92,11 +116,20 @@ export interface RuntimeMockData {
         value: string
         trend?: string
         trendDirection?: 'up' | 'down' | 'neutral'
+        icon?: string
     }>
     activity?: string[]
+    chartData?: Array<Record<string, string | number>>
+    kpis?: Array<{
+        label: string
+        value: string
+        icon?: string
+        progress?: number
+    }>
 }
 
 export interface IntentJSON {
+    surface: InterfaceSurface
     productType: ProductType
     domain: string
     primaryUser: string
@@ -188,11 +221,13 @@ export interface ResolvedTokens {
         nav: string
     }
     typography: {
+        display: string
         heading: string
         subheading: string
         body: string
         label: string
         micro: string
+        mono: string
     }
     shape: {
         button: string
@@ -208,6 +243,25 @@ export interface ResolvedTokens {
         accentText: string
         surfaceBg: string
         surfaceBorder: string
+    }
+    status: {
+        success: string
+        successBg: string
+        warning: string
+        warningBg: string
+        error: string
+        errorBg: string
+        info: string
+        infoBg: string
+    }
+    gradient: {
+        primary: string
+        subtle: string
+        hero: string
+        text: string
+    }
+    chart: {
+        colors: string[]
     }
     morphology: {
         cards: CardMorphology

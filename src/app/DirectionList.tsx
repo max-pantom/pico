@@ -31,20 +31,20 @@ export function DirectionList() {
     if (mode === 'done' && selectedExploration) {
         return (
             <div className="space-y-3">
-                <p className="text-[11px] font-mono uppercase tracking-wide text-gray-500">
+                <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">
                     Direction
                 </p>
-                <div className="rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-2.5">
-                    <p className="text-xs text-white font-medium">
+                <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-3 py-2.5">
+                    <p className="text-xs text-neutral-100 font-medium">
                         {selectedExploration.title}
                     </p>
-                    <p className="text-[11px] text-gray-500 mt-0.5">
+                    <p className="text-[11px] text-neutral-500 mt-0.5">
                         {selectedExploration.philosophy}
                     </p>
                 </div>
                 <button
                     onClick={reset}
-                    className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                    className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
                     New directions
                 </button>
@@ -56,7 +56,7 @@ export function DirectionList() {
 
     return (
         <div className="space-y-3">
-            <p className="text-[11px] font-mono uppercase tracking-wide text-gray-500">
+            <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">
                 Directions
             </p>
             <div className="space-y-1">
@@ -68,15 +68,15 @@ export function DirectionList() {
                             onClick={() => selectExploration(exploration)}
                             className={`w-full text-left rounded-lg px-3 py-2 transition-colors ${
                                 isSelected
-                                    ? 'bg-gray-800 text-white'
-                                    : 'text-gray-400 hover:text-white hover:bg-gray-900'
+                                    ? 'bg-neutral-800 text-neutral-100'
+                                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-900'
                             }`}
                         >
                             <div className="flex items-center gap-2">
                                 <span className={`size-2 shrink-0 rounded-full border ${
                                     isSelected
-                                        ? 'border-white bg-white'
-                                        : 'border-gray-600'
+                                        ? 'border-neutral-100 bg-neutral-100'
+                                        : 'border-neutral-600'
                                 }`} />
                                 <span className="text-xs font-medium truncate">
                                     {exploration.title}
@@ -89,7 +89,7 @@ export function DirectionList() {
             {selectedExploration && mode === 'selecting' && (
                 <button
                     onClick={() => handleExpand(selectedExploration)}
-                    className="w-full px-3 py-2 text-xs font-medium rounded-lg bg-white text-gray-950 hover:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 text-xs font-medium rounded-lg bg-neutral-100 text-neutral-950 hover:bg-neutral-200 transition-colors"
                 >
                     Expand this direction
                 </button>

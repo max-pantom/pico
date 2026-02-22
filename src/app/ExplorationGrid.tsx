@@ -1,7 +1,8 @@
 import { expandExploration } from '../pipeline/expansionEngine'
 import type { Exploration } from '../pipeline/explorationEngine'
 import { usePicoStore } from '../store/picoStore'
-import { HeroRenderer } from '../renderer/HeroRenderer'
+import { ScreenPreview, surfaceAspectRatio } from '../renderer/ScreenPreview'
+import type { InterfaceSurface } from '../types/pipeline'
 
 export function ExplorationGrid() {
     const {
@@ -13,6 +14,9 @@ export function ExplorationGrid() {
         setMode,
         setError,
     } = usePicoStore()
+
+    const surface: InterfaceSurface = intent?.surface ?? 'marketing'
+    const isMobile = surface === 'mobile'
 
     const handleExpand = async (exploration: Exploration) => {
         if (!intent) return
@@ -27,23 +31,26 @@ export function ExplorationGrid() {
         }
     }
 
-    const gridClass = {
-        1: 'grid-cols-1 max-w-3xl mx-auto',
-        2: 'grid-cols-1 lg:grid-cols-2',
-        4: 'grid-cols-1 md:grid-cols-2',
-    }[count]
+    const gridClass = isMobile
+        ? count === 1
+            ? 'flex justify-center'
+            : count === 2
+                ? 'flex justify-center gap-4'
+                : 'flex flex-wrap justify-center gap-4'
+        : {
+            1: 'grid grid-cols-1 max-w-3xl mx-auto',
+            2: 'grid grid-cols-1 lg:grid-cols-2',
+            4: 'grid grid-cols-2',
+        }[count]
 
     return (
-        <div className="flex-1 p-8 overflow-auto">
-            <p className="text-xs text-gray-500 font-mono mb-6">
-                {explorations.length} direction{explorations.length > 1 ? 's' : ''} - pick one to expand
-            </p>
-
-            <div className={`grid ${gridClass} gap-6`}>
+        <div className="flex-1 p-4 overflow-y-auto flex items-start justify-center">
+            <div className={`${gridClass} ${isMobile ? '' : 'gap-4 w-full'}`}>
                 {explorations.map((exploration) => (
                     <ExplorationCard
                         key={exploration.id}
                         exploration={exploration}
+                        surface={surface}
                         onExpand={() => handleExpand(exploration)}
                     />
                 ))}
@@ -54,29 +61,27 @@ export function ExplorationGrid() {
 
 function ExplorationCard({
     exploration,
+    surface,
     onExpand,
 }: {
     exploration: Exploration
+    surface: InterfaceSurface
     onExpand: () => void
 }) {
+    const isMobile = surface === 'mobile'
+
     return (
-        <div className="group relative flex flex-col border border-gray-800 rounded-xl overflow-hidden hover:border-gray-600 transition-colors bg-gray-950">
-            <div className="relative h-72 overflow-hidden border-b border-gray-800">
-                <HeroRenderer exploration={exploration} />
+        <div
+            className={`group relative overflow-hidden rounded-xl border border-neutral-800 hover:border-neutral-600 transition-colors cursor-pointer ${isMobile ? 'w-[220px]' : ''}`}
+            style={{ aspectRatio: surfaceAspectRatio(surface) }}
+            onClick={onExpand}
+        >
+            <ScreenPreview exploration={exploration} surface={surface} />
 
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                        onClick={onExpand}
-                        className="px-6 py-2.5 bg-white text-gray-950 text-sm font-medium rounded-full transform scale-95 group-hover:scale-100 transition-transform"
-                    >
-                        Expand this {'->'}
-                    </button>
-                </div>
-            </div>
-
-            <div className="p-4 flex-1">
-                <p className="text-white text-sm font-medium">{exploration.title}</p>
-                <p className="text-gray-500 text-xs mt-1">{exploration.philosophy}</p>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                <span className="px-5 py-2 bg-white text-neutral-950 text-xs font-medium rounded-full shadow-lg">
+                    Expand this direction
+                </span>
             </div>
         </div>
     )
