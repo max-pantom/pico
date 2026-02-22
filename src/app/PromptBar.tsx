@@ -5,6 +5,7 @@ import { usePicoStore } from '../store/picoStore'
 
 export function PromptBar() {
     const [prompt, setPrompt] = useState('')
+    const [focused, setFocused] = useState(false)
     const {
         count,
         mode,
@@ -13,7 +14,6 @@ export function PromptBar() {
         setIntent,
         setExplorations,
         setError,
-        reset,
     } = usePicoStore()
 
     const isRunning = mode === 'exploring' || mode === 'expanding'
@@ -33,39 +33,32 @@ export function PromptBar() {
     }
 
     return (
-        <div className="border-b border-gray-800 p-5 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-gray-500">pico</span>
-                    <span className="text-xs text-gray-600">-</span>
-                    <span className="text-xs text-gray-500">ai creative director</span>
-                </div>
-                <button
-                    onClick={reset}
-                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                    reset
-                </button>
-            </div>
-
-            <div className="flex gap-3">
+        <div
+            className={`w-full max-w-3xl rounded-xl border border-gray-800 bg-gray-900/80 backdrop-blur-md px-4 py-3 transition-all ${
+                focused ? 'border-gray-600 ring-1 ring-gray-700/50' : ''
+            }`}
+        >
+            <div className="flex items-center gap-3">
                 <input
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500"
-                    placeholder="Describe your idea..."
+                    className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+                    placeholder="Describe what to create..."
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleExplore()}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
                 />
 
-                <div className="flex border border-gray-700 rounded-lg overflow-hidden">
+                <div className="flex border border-gray-700 rounded-lg overflow-hidden shrink-0">
                     {([1, 2, 4] as const).map((n) => (
                         <button
                             key={n}
                             onClick={() => setCount(n)}
-                            className={`px-4 py-3 text-sm font-mono transition-colors ${count === n
-                                ? 'bg-white text-gray-950'
-                                : 'text-gray-500 hover:text-white'
-                                }`}
+                            className={`px-3 py-1.5 text-xs font-mono transition-colors ${
+                                count === n
+                                    ? 'bg-white text-gray-950'
+                                    : 'text-gray-500 hover:text-white'
+                            }`}
                         >
                             {n}
                         </button>
@@ -75,9 +68,9 @@ export function PromptBar() {
                 <button
                     onClick={handleExplore}
                     disabled={isRunning}
-                    className="px-6 py-3 bg-white text-gray-950 text-sm font-medium rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="shrink-0 px-5 py-1.5 bg-white text-gray-950 text-xs font-medium rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                    {mode === 'exploring' ? 'Exploring...' : 'Explore ->'}
+                    {mode === 'exploring' ? 'Exploring...' : 'Explore'}
                 </button>
             </div>
         </div>
