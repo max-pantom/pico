@@ -110,17 +110,26 @@ function buildCssVars(runtime: RuntimeDesignTokens): Record<string, string> {
     }
 }
 
-export function buildTokens(decisions: DesignDecisions): ResolvedTokens {
-    const runtime = withFallback(decisions.runtimeTokens)
+interface TokenBuildOptions {
+    layoutStrategy: DesignDecisions['layoutStrategy']
+    morphology?: {
+        cards: DesignDecisions['componentMorphology']['cards']
+        tables: DesignDecisions['componentMorphology']['tables']
+        buttons: DesignDecisions['componentMorphology']['buttons']
+    }
+}
+
+function buildResolvedTokens(runtimeInput: RuntimeDesignTokens | undefined, options: TokenBuildOptions): ResolvedTokens {
+    const runtime = withFallback(runtimeInput)
     const cssVars = buildCssVars(runtime)
 
-    const layoutByStrategy = decisions.layoutStrategy === 'top-nav-content'
+    const layoutByStrategy = options.layoutStrategy === 'top-nav-content'
         ? {
             wrapper: 'flex h-screen flex-col overflow-hidden bg-[var(--color-background)]',
             sidebar: 'w-full shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]',
             main: 'flex-1 overflow-y-auto',
         }
-        : decisions.layoutStrategy === 'split-panel'
+        : options.layoutStrategy === 'split-panel'
             ? {
                 wrapper: 'flex h-screen overflow-hidden bg-[var(--color-background)]',
                 sidebar: 'w-[40%] shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-surface)]',
@@ -172,11 +181,29 @@ export function buildTokens(decisions: DesignDecisions): ResolvedTokens {
             surfaceBorder: 'border-[var(--color-border)]',
         },
         morphology: {
-            cards: decisions.componentMorphology.cards,
-            tables: decisions.componentMorphology.tables,
-            buttons: decisions.componentMorphology.buttons,
+            cards: options.morphology?.cards || 'flat',
+            tables: options.morphology?.tables || 'minimal',
+            buttons: options.morphology?.buttons || 'label',
         },
         runtime,
         cssVars,
     }
+}
+
+export function buildTokensFromRuntime(
+    runtimeTokens?: RuntimeDesignTokens,
+    layoutStrategy: DesignDecisions['layoutStrategy'] = 'top-nav-content'
+): ResolvedTokens {
+    return buildResolvedTokens(runtimeTokens, { layoutStrategy })
+}
+
+export function buildTokens(decisions: DesignDecisions): ResolvedTokens {
+    return buildResolvedTokens(decisions.runtimeTokens, {
+        layoutStrategy: decisions.layoutStrategy,
+        morphology: {
+            cards: decisions.componentMorphology.cards,
+            tables: decisions.componentMorphology.tables,
+            buttons: decisions.componentMorphology.buttons,
+        },
+    })
 }

@@ -54,6 +54,8 @@ export interface RuntimeDesignTokens {
     typography: {
         fontFamily: string
         baseSize: string
+        headingSize?: string
+        bodySize?: string
         headingWeight: string
         headingTracking: string
     }
@@ -61,6 +63,8 @@ export interface RuntimeDesignTokens {
         cardPadding: string
         sectionGap: string
         navItemPadding: string
+        heroPadding?: string
+        headlineMargin?: string
     }
     radius: {
         card: string
