@@ -15,7 +15,7 @@ export function TopNav({ tokens, title = 'Workspace', links = [], activeIndex = 
     const safeCtaLabel = asText(ctaLabel, 'Create')
 
     return (
-        <header className={`${tokens.layout.sidebar} border-b ${tokens.tone.border} bg-white/70 backdrop-blur`}>
+        <header className={`w-full shrink-0 border-b ${tokens.tone.border} bg-[var(--color-surface)]/85 backdrop-blur`}>
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
                 <p className={`${tokens.typography.subheading} ${tokens.tone.text}`}>{safeTitle}</p>
                 <nav className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-x-auto">

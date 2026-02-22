@@ -1,7 +1,21 @@
 import type { IntentJSON } from '../types/pipeline'
 import { callLLM, extractJSON } from '../lib/llm'
 
-const PRODUCT_TYPES = new Set(['dashboard', 'form', 'landing', 'portal', 'tool', 'settings'])
+const PRODUCT_TYPES = new Set([
+  'dashboard',
+  'landing',
+  'onboarding',
+  'settings',
+  'admin',
+  'feed',
+  'ecommerce',
+  'documentation',
+  'portal',
+  'mobile-app',
+  'form',
+  'tool',
+  'portfolio',
+])
 const DENSITIES = new Set(['compact', 'comfortable', 'spacious'])
 const SCALES = new Set(['desktop', 'mobile', 'both'])
 
@@ -21,7 +35,7 @@ RULES:
 
 OUTPUT SCHEMA:
 {
-  "productType": "dashboard" | "form" | "landing" | "portal" | "tool" | "settings",
+  "productType": "dashboard" | "landing" | "onboarding" | "settings" | "admin" | "feed" | "ecommerce" | "documentation" | "portal" | "mobile-app" | "form" | "tool" | "portfolio",
   "domain": string,
   "primaryUser": string,
   "coreTasks": string[],

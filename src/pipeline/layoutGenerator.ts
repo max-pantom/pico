@@ -9,6 +9,8 @@ AVAILABLE COMPONENTS:
 - Header: { title: string, subtitle?: string }
 - Tabs: { tabs: string[], activeTab?: number } - Use to organize dense dashboards statically. Must wrap other elements in children.
 - Card: { title?: string } - A container for other elements
+- HeroSection: { title?: string, subtitle?: string, ctaLabel?: string, secondaryCtaLabel?: string }
+- WorkGrid: { title?: string, projects?: string[] }
 - StatBlock: { items: string[] } - A grid of metric cards
 - MetricCard: { label: string, value: string, trend?: string, trendDirection?: 'up' | 'down' | 'neutral' }
 - KPIRow: { items?: { label: string, value: string }[] }
@@ -31,7 +33,7 @@ RULES:
 JSON SCHEMA:
 Array of objects, where each object has:
 {
-  "component": "Header" | "Tabs" | "Card" | "StatBlock" | "MetricCard" | "KPIRow" | "ChartBlock" | "ActivityFeed" | "DataTable" | "Button" | "Input" | "FormGroup" | "Badge" | "Divider",
+  "component": "Header" | "Tabs" | "Card" | "HeroSection" | "WorkGrid" | "StatBlock" | "MetricCard" | "KPIRow" | "ChartBlock" | "ActivityFeed" | "DataTable" | "Button" | "Input" | "FormGroup" | "Badge" | "Divider",
   "props": { ... relevant props based on component ... },
   "children": [ ... nested nodes if applicable ... ] // optional
 }

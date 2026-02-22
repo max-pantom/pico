@@ -1,4 +1,17 @@
-export type ProductType = 'dashboard' | 'form' | 'landing' | 'portal' | 'tool' | 'settings'
+export type ProductType =
+    | 'dashboard'
+    | 'landing'
+    | 'onboarding'
+    | 'settings'
+    | 'admin'
+    | 'feed'
+    | 'ecommerce'
+    | 'documentation'
+    | 'portal'
+    | 'mobile-app'
+    | 'form'
+    | 'tool'
+    | 'portfolio'
 export type DensityLevel = 'compact' | 'comfortable' | 'spacious'
 export type VisualTone =
     | 'clinical'
@@ -27,6 +40,58 @@ export type CardMorphology = 'flat' | 'elevated' | 'bordered' | 'panel'
 export type TableMorphology = 'dense' | 'striped' | 'minimal'
 export type ButtonMorphology = 'label' | 'icon-label' | 'pill'
 
+export interface RuntimeDesignTokens {
+    colors: {
+        background: string
+        surface: string
+        primary: string
+        accent: string
+        text: string
+        muted: string
+        border: string
+        onPrimary?: string
+    }
+    typography: {
+        fontFamily: string
+        baseSize: string
+        headingWeight: string
+        headingTracking: string
+    }
+    spacing: {
+        cardPadding: string
+        sectionGap: string
+        navItemPadding: string
+    }
+    radius: {
+        card: string
+        button: string
+        input: string
+        badge: string
+    }
+    shadow: {
+        card: string
+        elevated: string
+    }
+    layout: {
+        sidebarWidth: string
+        topNavHeight: string
+    }
+}
+
+export interface RuntimeMockData {
+    table?: {
+        columns: string[]
+        rows: string[][]
+    }
+    stats?: Array<{
+        label: string
+        value: string
+        trend?: string
+        trendDirection?: 'up' | 'down' | 'neutral'
+    }>
+    activity?: string[]
+}
+
 export interface IntentJSON {
     productType: ProductType
     domain: string
@@ -54,8 +119,11 @@ export interface DesignDecisions {
     accentUsage: string
     typographyStrategy: TypographyStrategy
     componentMorphology: ComponentMorphology
+    contentArchitecture: string[]
     hierarchyFlow: string[]
     interactionModel: InteractionModel
+    runtimeTokens?: RuntimeDesignTokens
+    mockData?: RuntimeMockData
 }
 
 export type ComponentName =
@@ -67,6 +135,7 @@ export type ComponentName =
     | 'DetailPanel'
     | 'DenseGrid'
     | 'HeroSection'
+    | 'WorkGrid'
     | 'FeatureGrid'
     | 'CTASection'
     | 'FooterSection'
@@ -141,6 +210,8 @@ export interface ResolvedTokens {
         tables: TableMorphology
         buttons: ButtonMorphology
     }
+    runtime: RuntimeDesignTokens
+    cssVars: Record<string, string>
 }
 
 export interface AppStateVariable {

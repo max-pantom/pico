@@ -6,6 +6,7 @@ import { ListPanel } from './components/ListPanel'
 import { DetailPanel } from './components/DetailPanel'
 import { DenseGrid } from './components/DenseGrid'
 import { HeroSection } from './components/HeroSection'
+import { WorkGrid } from './components/WorkGrid'
 import { FeatureGrid } from './components/FeatureGrid'
 import { CTASection } from './components/CTASection'
 import { FooterSection } from './components/FooterSection'
@@ -37,6 +38,7 @@ export const ComponentRegistry: Record<ComponentName, React.ComponentType<any>> 
     DetailPanel,
     DenseGrid,
     HeroSection,
+    WorkGrid,
     FeatureGrid,
     CTASection,
     FooterSection,

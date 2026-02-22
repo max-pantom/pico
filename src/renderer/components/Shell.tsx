@@ -8,7 +8,7 @@ interface Props {
 
 export function Shell({ tokens, children }: Props) {
     return (
-        <div className={`${tokens.colors.surfaceBg} ${tokens.layout.wrapper} font-sans`}>
+        <div className={`${tokens.colors.surfaceBg} ${tokens.layout.wrapper}`}>
             {children}
         </div>
     )

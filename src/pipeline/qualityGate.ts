@@ -28,16 +28,24 @@ export function runQualityGate(
         score -= 15
     }
 
-    // Rule: clinical tone should have no shadow
-    if (decisions.visualTone === 'clinical' && tokens.tone.shadow !== '') {
-        issues.push('Clinical tone should not use shadows')
+    if (!Array.isArray(decisions.contentArchitecture) || decisions.contentArchitecture.length < 3) {
+        issues.push('Content architecture should include at least 3 ordered sections')
+        score -= 12
+    }
+
+    if (!tokens.runtime?.colors?.background || !tokens.runtime?.colors?.surface || !tokens.runtime?.colors?.text) {
+        issues.push('Runtime color tokens are incomplete')
+        score -= 12
+    }
+
+    if (!tokens.runtime?.spacing?.cardPadding || !tokens.runtime?.radius?.card || !tokens.runtime?.shadow?.card) {
+        issues.push('Runtime spacing/radius/shadow tokens are incomplete')
         score -= 10
     }
 
-    // Rule: compact density must use small text
-    if (decisions.density === 'compact' && !tokens.density.table.includes('text-xs')) {
-        issues.push('Compact density should use xs text in tables')
-        score -= 10
+    if (decisions.visualTone === 'clinical' && tokens.runtime.shadow.card !== 'none') {
+        issues.push('Clinical tone should use flat card shadows (none)')
+        score -= 8
     }
 
     // Rule: sidebar-main layout requires a Sidebar component

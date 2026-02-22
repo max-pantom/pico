@@ -11,6 +11,24 @@ RETURN ONLY valid JSON. No explanation, no markdown, no code fences.
 
 DESIGN RULES YOU MUST FOLLOW:
 
+CONTENT ARCHITECTURE RULES:
+- Before any visual token, determine the natural section structure for this product type.
+- Output this as an ordered "contentArchitecture" array (3-7 items).
+- Choose sections based on user intent and real product usage, not dashboard defaults.
+
+PRODUCT-TYPE SECTION CONVENTIONS:
+- portfolio: ["hero-identity", "selected-work", "about-process", "contact"]
+- landing: ["hero", "value-prop", "features", "social-proof", "pricing", "cta"]
+- documentation: ["search", "sidebar-navigation", "prose-content", "code-examples"]
+- admin: ["navigation", "filters", "table", "bulk-actions", "detail-panel"]
+- ecommerce: ["search-filter", "product-grid", "product-detail", "cart"]
+
+PRODUCT-TYPE COMPONENT CONSTRAINTS:
+- portfolio must avoid data tables, KPI rows, activity feeds, stat blocks, and charts.
+- landing must avoid dashboards, feeds, and dense data tables.
+- documentation must prefer prose, code examples, and deep navigation.
+- admin should prioritize data tables, forms, status indicators, and bulk actions.
+
 LAYOUT STRATEGY:
 - "dashboard" + "compact" density → "sidebar-main"
 - "landing" or "editorial" → "top-nav-content"
@@ -105,6 +123,60 @@ RULES:
    - "inputs": "underlined", "filled", or "outlined"
 9. The "interactionModel" must be one of: "click-to-drill", "inline-expand", "modal", "side-panel".
 10. The "hierarchyFlow" is an array of 3-5 string labels that represent the primary navigation items.
+10.5. Include "contentArchitecture" as an ordered list of natural sections for the product type.
+11. Include "runtimeTokens" using real values (hex colors, px sizes, css shadow values), never Tailwind class names.
+12. Include "mockData" with domain-specific table rows, stats, and activity entries.
+
+RUNTIME TOKENS SCHEMA:
+"runtimeTokens": {
+  "colors": {
+    "background": "#hex",
+    "surface": "#hex",
+    "primary": "#hex",
+    "accent": "#hex",
+    "text": "#hex",
+    "muted": "#hex",
+    "border": "#hex",
+    "onPrimary": "#hex"
+  },
+  "typography": {
+    "fontFamily": "font stack string",
+    "baseSize": "14px",
+    "headingWeight": "700",
+    "headingTracking": "-0.02em"
+  },
+  "spacing": {
+    "cardPadding": "16px",
+    "sectionGap": "24px",
+    "navItemPadding": "8px 12px"
+  },
+  "radius": {
+    "card": "12px",
+    "button": "10px",
+    "input": "10px",
+    "badge": "999px"
+  },
+  "shadow": {
+    "card": "0 1px 3px rgba(0,0,0,0.1)",
+    "elevated": "0 12px 28px rgba(0,0,0,0.15)"
+  },
+  "layout": {
+    "sidebarWidth": "260px",
+    "topNavHeight": "64px"
+  }
+}
+
+MOCK DATA SCHEMA:
+"mockData": {
+  "table": {
+    "columns": ["..."],
+    "rows": [["..."], ["..."]]
+  },
+  "stats": [
+    { "label": "...", "value": "...", "trend": "+4.2%", "trendDirection": "up" }
+  ],
+  "activity": ["message|time", "message|time"]
+}
 
 EXAMPLE OUTPUT:
 {
@@ -121,8 +193,54 @@ EXAMPLE OUTPUT:
     "buttons": "pill",
     "inputs": "outlined"
   },
+  "contentArchitecture": ["hero", "value-prop", "features", "cta"],
   "hierarchyFlow": ["Dashboard", "Projects", "Team", "Settings"],
-  "interactionModel": "modal"
+  "interactionModel": "modal",
+  "runtimeTokens": {
+    "colors": {
+      "background": "#f8fafc",
+      "surface": "#ffffff",
+      "primary": "#2563eb",
+      "accent": "#7c3aed",
+      "text": "#0f172a",
+      "muted": "#64748b",
+      "border": "#e2e8f0",
+      "onPrimary": "#ffffff"
+    },
+    "typography": {
+      "fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif",
+      "baseSize": "14px",
+      "headingWeight": "700",
+      "headingTracking": "-0.02em"
+    },
+    "spacing": {
+      "cardPadding": "16px",
+      "sectionGap": "24px",
+      "navItemPadding": "8px 12px"
+    },
+    "radius": {
+      "card": "12px",
+      "button": "10px",
+      "input": "10px",
+      "badge": "999px"
+    },
+    "shadow": {
+      "card": "0 1px 3px rgba(15,23,42,0.08)",
+      "elevated": "0 12px 28px rgba(15,23,42,0.14)"
+    },
+    "layout": {
+      "sidebarWidth": "260px",
+      "topNavHeight": "64px"
+    }
+  },
+  "mockData": {
+    "table": {
+      "columns": ["Date", "Revenue", "Source", "Change"],
+      "rows": [["Jan 14", "$48,200", "Direct", "+4.2%"], ["Jan 15", "$52,100", "Organic", "+8.1%"]]
+    },
+    "stats": [{ "label": "Monthly Revenue", "value": "$2.47M", "trend": "+8.3%", "trendDirection": "up" }],
+    "activity": ["Payment settled - Acme|2 min ago", "Alert acknowledged - Ops|6 min ago"]
+  }
 }
 `
 
@@ -138,7 +256,13 @@ export async function reasonDesign(
   const cleanJson = extractJSON(text)
 
   try {
-    return JSON.parse(cleanJson) as DesignDecisions
+    const parsed = JSON.parse(cleanJson) as Partial<DesignDecisions>
+    return {
+      ...parsed,
+      contentArchitecture: Array.isArray(parsed.contentArchitecture)
+        ? parsed.contentArchitecture.map(section => String(section))
+        : [],
+    } as DesignDecisions
   } catch {
     throw new Error(`Design reasoner returned invalid JSON: ${text}`)
   }
