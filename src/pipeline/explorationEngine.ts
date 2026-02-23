@@ -1,6 +1,8 @@
 import { callLLM, extractJSON } from '../lib/llm'
 import type { IntentJSON, LayoutNode, RuntimeDesignTokens, SceneBlueprint, SceneStrategy } from '../types/pipeline'
-import { buildFirstScreen, getSurfaceDefinition } from './surfaceConfig'
+import type { AutoLayout, DesignDocument, DesignLayer, LayerRole, LayerType } from '../design/frameModel'
+import { buildFirstScreen } from './surfaceConfig'
+import { SURFACE_RENDER } from '../renderer/surfaceRender'
 import type { ScreenContent } from './surfaceConfig'
 import { resolveArchetype } from './productArchetypes'
 import type { ProductArchetype } from './productArchetypes'
@@ -8,7 +10,6 @@ import { pickDivergentSeeds, pickReplacementSeed, formatSeedForPrompt } from './
 import type { CreativeSeed } from './designWorlds'
 import {
     pickStrategyForDirection,
-    formatStrategyForPrompt,
     type CompositionStrategy,
     COMPOSITION_STRATEGIES,
 } from './compositionStrategies'
@@ -53,6 +54,7 @@ export interface Exploration {
     tokens: ExplorationTokens
     screen: ScreenContent
     screenLayout: LayoutNode
+    designDocument?: DesignDocument
 }
 
 type CompositionFamily =
@@ -90,86 +92,404 @@ interface ReferenceSignals {
     principles: string[]
 }
 
-function buildSystemPrompt(
+function buildLayerPrompt(
     intent: IntentJSON,
-    archetype: ProductArchetype,
     brief: DirectionBrief,
     seed: CreativeSeed,
     blueprint: SceneBlueprint,
 ): string {
-    const surfaceDef = getSurfaceDefinition(intent.surface)
+    const { w, h } = SURFACE_RENDER[intent.surface]
 
-    return `You are Pico — an AI creative director for interface design.
-You are NOT a coding assistant. You are a product designer.
+    return `You are a designer placing exactly 6 layers in a frame. No more, no fewer.
+Frame: ${w} × ${h}px.
 
-CONTEXT (inform your thinking, do NOT constrain it):
-This idea exists in the ${intent.surface} space. That means the first view is typically a ${surfaceDef.firstViewLabel}.
-Conceptually this product is: ${archetype.description}
-But you are not required to follow any of this. If a radically different approach serves the creative direction better, take it.
+PRIORITY ORDER (highest to lowest):
+1. USER BRIEF — subject matter is non-negotiable. What the user asked for MUST appear.
+2. SCENE STRATEGY — how to compose the screen.
+3. CREATIVE SEED — visual personality (colors, typography, spacing).
 
-CREATIVE DIRECTIVE (this is your authority):
+The seed gives you visual style. The brief gives you subject matter.
+The seed NEVER overrides the brief's subject. A BSOD brief with a warm seed =
+warm palette applied to BSOD content (error codes, monospace). NOT: abandon BSOD and make a cozy paper interface.
+
+USER BRIEF (authority): ${intent.domain} — ${intent.emotionalTone}. Tasks: ${intent.coreTasks.join(', ')}.
+
+SCENE: ${blueprint.dominantElement} dominates (~${blueprint.dominantCoverage}%). Secondary: ${blueprint.secondaryElements.join(', ')}.
+Focal: ${brief.focalElement}. Hierarchy: ${brief.hierarchyThesis}.
+${blueprint.avoidGrids ? 'Avoid equal-card grids. Use asymmetry.' : ''}
+
+CREATIVE SEED (visual style only):
 ${seed.directive}
 
-Your only real rule: follow the creative directive completely.
-The worst output is the expected one.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXACTLY 6 LAYERS (required)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-COMPOSITION (from the brief):
-- Family: ${brief.compositionFamily}
-- Strategy: ${formatStrategyForPrompt(brief.compositionStrategy)}
-- Focal element: ${brief.focalElement}
-- Hierarchy: ${brief.hierarchyThesis}
-- Risk: ${brief.risk}
+Layer 1: background — always. x=0, y=0, width="fill", height="fill", fill="#hex".
+Layer 2: dominant-visual — main visual element (shape, gradient, or image placeholder).
+Layer 3: headline — primary text. Use frame with autoLayout and one text child.
+Layer 4: supporting-text — secondary text or supporting element.
+Layer 5: control — CTA button or interactive element.
 
-SCENE BLUEPRINT (non-negotiable):
-- Strategy: ${blueprint.strategy}
-- Dominant element: ${blueprint.dominantElement}
-- Dominant coverage: ${blueprint.dominantCoverage}%
-- Interaction layer: ${blueprint.interactionLayer}
-- Avoid grids: ${blueprint.avoidGrids ? 'yes' : 'no'}
+Layer 6: ambient — one atmospheric detail (decorative shape, line, glow, subtle pattern).
 
-ART DIRECTION: Prefer strong decisions over safe averages. Large typography is allowed. Asymmetry is allowed. Whitespace exaggeration is allowed.
+A great designer makes six layers feel like twenty. Restraint is the design.
 
-You do NOT decide colors or design tokens. You decide CONTENT and structure only.
-Tokens are generated separately.
+Keep each layer to at most 8 properties. Use "fill" or "hug" for width/height when appropriate.
+Text must live inside a frame with autoLayout. Never free-floating text with x,y.
 
-Output ONLY valid JSON matching this schema (no "tokens" field):
-
+OUTPUT (valid JSON only):
 {
   "title": "2-3 word direction name",
   "philosophy": "one sentence design thesis",
-  "screen": {
-    "headline": "primary heading or title for this screen",
-    "subheadline": "supporting description or subtitle",
-    "ctaPrimary": "primary action button label",
-    "ctaSecondary": "secondary action label or null",
-    "navItems": ["nav item 1", "nav item 2", "nav item 3", "nav item 4"],
-    "metrics": [
-      { "label": "metric name", "value": "metric value" },
-      { "label": "metric name", "value": "metric value" },
-      { "label": "metric name", "value": "metric value" }
-    ],
-    "listItems": [
-      "realistic list item with context|timestamp",
-      "another realistic list item|timestamp",
-      "third list item|timestamp"
-    ],
-    "featureLabels": ["feature or section 1", "feature or section 2", "feature or section 3"],
-    "backgroundTreatment": "solid | gradient | mesh"
-  }
+  "layers": [
+    { "id": "bg", "role": "background", "type": "shape", "x": 0, "y": 0, "width": "fill", "height": "fill", "fill": "#hex", "zIndex": 0 },
+    { "id": "dom", "role": "dominant-visual", "type": "shape", "x": 0, "y": 0, "width": ${w}, "height": ${Math.round(h * 0.6)}, "fill": "#hex", "zIndex": 1 },
+    { "id": "hl", "role": "headline", "type": "frame", "x": 48, "y": 120, "width": 600, "height": "hug", "zIndex": 2, "autoLayout": { "direction": "vertical", "gap": 8, "padding": 0, "alignment": "start" }, "children": [{ "type": "text", "content": "Headline", "fontSize": 48, "fontWeight": 700, "width": "fill", "height": "hug", "zIndex": 0 }] },
+    { "id": "sub", "role": "supporting-text", "type": "frame", "x": 48, "y": 220, "width": 500, "height": "hug", "zIndex": 3, "autoLayout": { "direction": "vertical", "gap": 4, "padding": 0, "alignment": "start" }, "children": [{ "type": "text", "content": "Subtext", "fontSize": 16, "fontWeight": 400, "width": "fill", "height": "hug", "zIndex": 0 }] },
+    { "id": "cta", "role": "control", "type": "shape", "x": 48, "y": 320, "width": 160, "height": 48, "fill": "#hex", "radius": 8, "content": "Get Started", "zIndex": 4 },
+    { "id": "amb", "role": "ambient", "type": "shape", "x": 0, "y": 0, "width": 200, "height": 200, "opacity": 0.15, "fill": "#hex", "zIndex": 5 }
+  ]
 }
 
-CONTENT RULES:
-- "headline" is the primary text on screen. For dashboards it is the page title. For games it is the title or status. For marketing it is the hero headline.
-- "navItems" are sidebar or top nav labels (max 6).
-- "metrics" are KPI-style stats with realistic domain-specific values. Include 3-4.
-- "listItems" are feed items, recent activity, or recent entries. Include a pipe-separated timestamp. Include 3-5.
-- "featureLabels" are feature names, tab labels, or action categories (3-4).
-- ALL content must be realistic and domain-specific. No placeholders like "Item 1" or "Feature A".
-- ALL values must be believable. Stats should have real-looking numbers, not "N/A".
-- The screen must feel complete and believable. No single isolated control.
-- The dominant element must read as ${blueprint.dominantElement} and clearly support ${blueprint.dominantCoverage}% dominant hero weight.
-- Secondary elements must remain visually subordinate to the dominant element.
-${blueprint.avoidGrids ? '- Avoid equal-width, repeated card-grid framing for hero and secondary scene composition.' : ''}`
+Replace placeholder values with domain-specific content. All content must be realistic.`
+}
+
+const VALID_LAYER_ROLES = new Set<LayerRole>([
+    'background', 'dominant-visual', 'headline', 'supporting-text', 'control', 'navigation', 'ambient',
+])
+
+function buildFallbackLayers(tokens: RuntimeDesignTokens, frameW: number, frameH: number): DesignLayer[] {
+    const centerY = Math.round(frameH / 2) - 24
+    return [
+        {
+            id: 'fallback-bg',
+            name: 'background',
+            role: 'background',
+            type: 'shape',
+            x: 0,
+            y: 0,
+            width: 'fill',
+            height: 'fill',
+            zIndex: 0,
+            fill: tokens.colors.background,
+        },
+        {
+            id: 'fallback-msg',
+            name: 'headline',
+            role: 'headline',
+            type: 'text',
+            x: 60,
+            y: Math.max(48, centerY),
+            width: frameW - 120,
+            height: 'hug',
+            zIndex: 1,
+            content: 'Generation incomplete',
+            fontSize: 32,
+            fontWeight: 700,
+            color: tokens.colors.text,
+        },
+    ]
+}
+const VALID_LAYER_TYPES = new Set<LayerType>(['frame', 'text', 'shape', 'image', 'group'])
+
+function parseAutoLayout(v: unknown): AutoLayout | undefined {
+    if (!v || typeof v !== 'object') return undefined
+    const o = v as Record<string, unknown>
+    const dir = o.direction === 'horizontal' || o.direction === 'vertical' ? o.direction : 'vertical'
+    const gap = Number.isFinite(Number(o.gap)) ? Number(o.gap) : 16
+    let padding: AutoLayout['padding'] = 24
+    if (Number.isFinite(Number(o.padding))) {
+        padding = Number(o.padding)
+    } else if (o.padding && typeof o.padding === 'object') {
+        const p = o.padding as Record<string, unknown>
+        padding = {
+            top: Number.isFinite(Number(p.top)) ? Number(p.top) : 24,
+            right: Number.isFinite(Number(p.right)) ? Number(p.right) : 24,
+            bottom: Number.isFinite(Number(p.bottom)) ? Number(p.bottom) : 24,
+            left: Number.isFinite(Number(p.left)) ? Number(p.left) : 24,
+        }
+    }
+    const alignment = ['start', 'center', 'end', 'space-between', 'space-around'].includes(String(o.alignment))
+        ? (o.alignment as AutoLayout['alignment'])
+        : 'start'
+    const wrap = Boolean(o.wrap)
+    return { direction: dir, gap, padding, alignment, wrap }
+}
+
+function parseLayerItem(
+    o: Record<string, unknown>,
+    index: number,
+    z: { value: number },
+    parentId?: string,
+    isChildOfAutoLayout?: boolean,
+): DesignLayer | null {
+    const role = VALID_LAYER_ROLES.has(o.role as LayerRole) ? (o.role as LayerRole) : 'ambient'
+    const type = VALID_LAYER_TYPES.has(o.type as LayerType) ? (o.type as LayerType) : 'shape'
+    const width = o.width === 'fill' || o.width === 'hug' ? o.width : (Number.isFinite(Number(o.width)) ? Number(o.width) : 200)
+    const height = o.height === 'fill' || o.height === 'hug' ? o.height : (Number.isFinite(Number(o.height)) ? Number(o.height) : 40)
+    const zIndex = Number.isFinite(Number(o.zIndex)) ? Number(o.zIndex) : z.value++
+
+    const layer: DesignLayer = {
+        id: typeof o.id === 'string' ? o.id : `${parentId ?? 'layer'}-${index}`,
+        name: typeof o.name === 'string' ? o.name : role,
+        role,
+        type,
+        width,
+        height,
+        zIndex,
+    }
+
+    if (!isChildOfAutoLayout) {
+        layer.x = Number.isFinite(Number(o.x)) ? Number(o.x) : 0
+        layer.y = Number.isFinite(Number(o.y)) ? Number(o.y) : 0
+    }
+
+    const autoLayout = parseAutoLayout(o.autoLayout)
+    if (autoLayout) layer.autoLayout = autoLayout
+
+    if (typeof o.fill === 'string') layer.fill = o.fill
+    if (o.gradient && typeof o.gradient === 'object') {
+        const g = o.gradient as Record<string, unknown>
+        layer.gradient = {
+            from: typeof g.from === 'string' ? g.from : '#000',
+            to: typeof g.to === 'string' ? g.to : '#000',
+            via: typeof g.via === 'string' ? g.via : undefined,
+        }
+    }
+    if (Number.isFinite(Number(o.opacity))) layer.opacity = Number(o.opacity)
+    if (Number.isFinite(Number(o.radius))) layer.radius = Number(o.radius)
+    if (typeof o.content === 'string') layer.content = o.content
+    if (Number.isFinite(Number(o.fontSize))) layer.fontSize = Number(o.fontSize)
+    if (Number.isFinite(Number(o.fontWeight))) layer.fontWeight = Number(o.fontWeight)
+    if (typeof o.color === 'string') layer.color = o.color
+    if (Number.isFinite(Number(o.rotation))) layer.rotation = Number(o.rotation)
+    if (Number.isFinite(Number(o.blur))) layer.blur = Number(o.blur)
+
+    if (Array.isArray(o.children) && o.children.length > 0 && layer.autoLayout) {
+        const childZ = { value: zIndex + 1 }
+        layer.children = o.children
+            .map((c, i) => c && typeof c === 'object' ? parseLayerItem(c as Record<string, unknown>, i, childZ, layer.id, true) : null)
+            .filter((c): c is DesignLayer => c != null)
+    }
+
+    return layer
+}
+
+interface LayerBox {
+    x: number
+    y: number
+    width: number
+    height: number
+}
+
+const NON_OVERLAP_ROLES = new Set<LayerRole>(['headline', 'supporting-text', 'control', 'navigation'])
+
+function intersects(a: LayerBox, b: LayerBox): boolean {
+    return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y)
+}
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max)
+}
+
+function estimateTextHeight(content: string, fontSize: number, maxWidth: number): number {
+    const charsPerLine = Math.max(8, Math.floor(maxWidth / Math.max(6, fontSize * 0.55)))
+    const lines = Math.max(1, Math.ceil(content.length / charsPerLine))
+    return Math.ceil(lines * (fontSize * 1.2))
+}
+
+function estimateLayerBox(layer: DesignLayer, frameW: number, frameH: number, margin: number): LayerBox {
+    const x = clamp(layer.x ?? margin, margin, Math.max(margin, frameW - margin))
+    const y = clamp(layer.y ?? margin, margin, Math.max(margin, frameH - margin))
+
+    const width = (() => {
+        if (layer.width === 'fill') return Math.max(120, frameW - (margin * 2))
+        if (typeof layer.width === 'number') return clamp(layer.width, 40, frameW - margin)
+        if (layer.type === 'text') {
+            const fontSize = clamp(layer.fontSize ?? 28, 12, 110)
+            const rough = (layer.content?.length ?? 24) * (fontSize * 0.55)
+            return clamp(rough, 140, frameW - (margin * 2))
+        }
+        return clamp(Math.round(frameW * 0.45), 180, frameW - (margin * 2))
+    })()
+
+    const height = (() => {
+        if (layer.height === 'fill') return Math.max(120, frameH - (margin * 2))
+        if (typeof layer.height === 'number') return clamp(layer.height, 24, frameH - margin)
+        if (layer.type === 'text') {
+            const fontSize = clamp(layer.fontSize ?? 28, 12, 110)
+            return clamp(estimateTextHeight(layer.content ?? '', fontSize, width), 24, frameH - margin)
+        }
+        if (layer.autoLayout) {
+            const childCount = layer.children?.length ?? 1
+            return clamp(80 + (childCount * 54), 80, frameH - margin)
+        }
+        return 96
+    })()
+
+    return {
+        x: clamp(x, margin, Math.max(margin, frameW - width - margin)),
+        y: clamp(y, margin, Math.max(margin, frameH - height - margin)),
+        width,
+        height,
+    }
+}
+
+function sanitizeLayer(layer: DesignLayer, frameW: number, frameH: number, isChild = false): DesignLayer {
+    const next: DesignLayer = { ...layer }
+
+    if (typeof next.fontSize === 'number') {
+        next.fontSize = clamp(next.fontSize, 10, 124)
+    }
+
+    if (isChild) {
+        delete next.x
+        delete next.y
+    } else {
+        const margin = 24
+        if (typeof next.x === 'number') next.x = clamp(next.x, 0, Math.max(0, frameW - 24))
+        if (typeof next.y === 'number') next.y = clamp(next.y, 0, Math.max(0, frameH - 24))
+
+        if (typeof next.width === 'number') {
+            const maxW = Math.max(48, frameW - ((next.x ?? 0) + margin))
+            next.width = clamp(next.width, 40, maxW)
+        }
+
+        if (typeof next.height === 'number') {
+            const maxH = Math.max(40, frameH - ((next.y ?? 0) + margin))
+            next.height = clamp(next.height, 24, maxH)
+        }
+    }
+
+    if (next.autoLayout && next.children?.length) {
+        next.children = next.children.map(child => sanitizeLayer(child, frameW, frameH, true))
+    }
+
+    return next
+}
+
+function deconflictTopLevelContent(layers: DesignLayer[], frameW: number, frameH: number): DesignLayer[] {
+    const margin = 24
+    const gap = 14
+    const placed: LayerBox[] = []
+
+    const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex)
+
+    return sorted.map(layer => {
+        const next = sanitizeLayer(layer, frameW, frameH, false)
+        if (!NON_OVERLAP_ROLES.has(next.role)) return next
+
+        const box = estimateLayerBox(next, frameW, frameH, margin)
+        let targetY = box.y
+
+        let iterations = 0
+        while (iterations < 12) {
+            const candidate: LayerBox = { ...box, y: targetY }
+            const collision = placed.find(existing => intersects(candidate, existing))
+            if (!collision) break
+            targetY = collision.y + collision.height + gap
+            iterations += 1
+        }
+
+        const finalY = clamp(targetY, margin, Math.max(margin, frameH - box.height - margin))
+        next.x = box.x
+        next.y = finalY
+
+        placed.push({ ...box, y: finalY })
+
+        return next
+    })
+}
+
+function normalizeDesignLayers(layers: DesignLayer[], frameW: number, frameH: number): DesignLayer[] {
+    const withBounds = layers.map(layer => sanitizeLayer(layer, frameW, frameH, false))
+    return deconflictTopLevelContent(withBounds, frameW, frameH)
+}
+
+const MAX_LAYERS = 6
+
+function parseDesignLayers(
+    raw: string,
+    _blueprint: SceneBlueprint,
+    frameW: number,
+    frameH: number,
+): DesignLayer[] | null {
+    try {
+        const parsed = JSON.parse(extractJSON(raw)) as { layers?: unknown[] }
+        if (!Array.isArray(parsed.layers) || parsed.layers.length === 0) return null
+
+        const layers: DesignLayer[] = []
+        const z = { value: 0 }
+        const limit = Math.min(parsed.layers.length, MAX_LAYERS)
+
+        for (let i = 0; i < limit; i++) {
+            const item = parsed.layers[i]
+            if (!item || typeof item !== 'object') continue
+            const layer = parseLayerItem(item as Record<string, unknown>, i, z, undefined, false)
+            if (layer) layers.push(layer)
+        }
+
+        return layers.length > 0 ? normalizeDesignLayers(layers, frameW, frameH) : null
+    } catch {
+        return null
+    }
+}
+
+function buildDesignDocument(
+    name: string,
+    layers: DesignLayer[],
+    runtimeTokens: RuntimeDesignTokens,
+    frameW: number,
+    frameH: number,
+): DesignDocument {
+    const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex)
+    return {
+        name,
+        frame: {
+            id: 'frame-main',
+            name: 'main',
+            type: 'screen',
+            width: frameW,
+            height: frameH,
+            background: runtimeTokens.colors.background,
+            layers: sorted,
+        },
+        tokens: runtimeTokens,
+    }
+}
+
+function flattenLayers(layers: DesignLayer[]): DesignLayer[] {
+    const out: DesignLayer[] = []
+    for (const l of layers) {
+        out.push(l)
+        if (l.children?.length) out.push(...flattenLayers(l.children))
+    }
+    return out
+}
+
+function deriveScreenFromLayers(layers: DesignLayer[]): ScreenContent {
+    const flat = flattenLayers(layers)
+    const headline = flat.find(l => l.role === 'headline' && l.content)?.content ?? 'Product'
+    const subtext = flat.find(l => l.role === 'supporting-text' && l.content)?.content ?? ''
+    const cta = flat.find(l => l.role === 'control')?.content ?? 'Get Started'
+    const navLabels = flat.filter(l => l.role === 'navigation').map(l => l.content).filter(Boolean) as string[]
+    return {
+        headline,
+        subheadline: subtext,
+        ctaPrimary: cta,
+        ctaSecondary: null,
+        navItems: navLabels.length > 0 ? navLabels : ['Overview', 'Details', 'Settings'],
+        metrics: [],
+        listItems: [],
+        featureLabels: [],
+        backgroundTreatment: 'solid',
+    }
+}
+
+function layerFingerprint(doc: DesignDocument): string {
+    const parts = doc.frame.layers.map(l => `${l.role}:${l.type}:${l.x ?? 0}:${l.y ?? 0}`)
+    return parts.join('|')
 }
 
 const FALLBACK_EXPLORATION_TOKENS: ExplorationTokens = {
@@ -218,21 +538,6 @@ function safeString(val: unknown, fallback: string): string {
     return typeof val === 'string' && val.trim().length > 0 ? val : fallback
 }
 
-function safeStringArray(val: unknown, fallback: string[]): string[] {
-    if (!Array.isArray(val)) return fallback
-    const strings = val.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-    return strings.length > 0 ? strings : fallback
-}
-
-function safeMetrics(val: unknown): ScreenContent['metrics'] {
-    if (!Array.isArray(val)) return []
-    return val
-        .filter((v): v is { label: string; value: string } =>
-            v && typeof v === 'object' && typeof v.label === 'string' && typeof v.value === 'string')
-        .slice(0, 4)
-}
-
-const VALID_TREATMENTS = new Set(['solid', 'gradient', 'mesh'])
 const PLACEHOLDER_PATTERN = /\b(item\s*\d+|feature\s*[a-z]|lorem|placeholder|n\/a|todo)\b/i
 const COMPOSITIONS: CompositionFamily[] = [
     'editorial-asymmetry',
@@ -275,25 +580,6 @@ const REFERENCE_LIBRARY: Array<{
         principles: ['playful cadence', 'high feedback clarity', 'rounded energetic visuals'],
     },
 ]
-
-function parseScreen(raw: unknown, intent: IntentJSON): ScreenContent {
-    const s = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-    const fallbackTasks = intent.coreTasks.slice(0, 4)
-
-    return {
-        headline: safeString(s.headline, intent.domain),
-        subheadline: safeString(s.subheadline, `Built for ${intent.primaryUser}`),
-        ctaPrimary: safeString(s.ctaPrimary, 'Get Started'),
-        ctaSecondary: typeof s.ctaSecondary === 'string' ? s.ctaSecondary : null,
-        navItems: safeStringArray(s.navItems, ['Overview', 'Details', 'Settings']),
-        metrics: safeMetrics(s.metrics),
-        listItems: safeStringArray(s.listItems, []),
-        featureLabels: safeStringArray(s.featureLabels, fallbackTasks),
-        backgroundTreatment: VALID_TREATMENTS.has(String(s.backgroundTreatment))
-            ? s.backgroundTreatment as ScreenContent['backgroundTreatment']
-            : 'solid',
-    }
-}
 
 function countModuleHits(screen: ScreenContent, archetype: ProductArchetype): number {
     const blob = [
@@ -543,6 +829,10 @@ async function generateDirectionBrief(
     const forcedStrategy = pickStrategyForDirection(index, count as 1 | 2 | 4)
     const fallback = fallbackBrief(intent, seed, inferredRisk, forcedComposition, forcedStrategy)
     const prompt = `You are Pico's creative director. Build a concise direction brief.
+
+PRIORITY: User brief (subject matter) is non-negotiable. The seed gives visual personality.
+Your brief must serve the user's subject. A BSOD 404 brief = error-screen concept, not a generic landing page.
+
 You decide DESIGN DECISIONS first: hierarchy, focal point, density, alignment, spatial rhythm.
 You do NOT decide colors or tokens — those emerge later from the design universe.
 
@@ -650,14 +940,17 @@ async function generateTokens(
 ): Promise<ExplorationTokens> {
     const seedBlock = formatSeedForPrompt(seed)
     const systemPrompt = `You are Pico's token generator. Tokens are the PHYSICS of a design universe.
-They emerge from intent + seed + archetype. You invent a NEW design system every time.
-Never reuse tokens globally. Each exploration gets its own universe.
+
+PRIORITY: User brief (subject) > Seed (visual style).
+The seed gives visual personality. The brief gives subject matter.
+Tokens must serve the brief's subject. A BSOD brief gets BSOD-appropriate tokens (blue, monospace) even with a warm seed — apply the seed's warmth as accent, not replacement.
 
 ${seedBlock}
 
 Rules:
 - Output ONLY valid JSON with a "tokens" object.
-- Colors, typography, spacing, radius, shadow must embody the seed directive.
+- Subject from brief is non-negotiable. Style from seed.
+- Colors, typography, spacing must embody the seed directive WHILE fitting the brief's subject.
 - Respect PROHIBITED rules in the seed.
 - The result must feel coherent with: ${brief.concept}
 - Density ${brief.density}, alignment ${brief.alignment}, rhythm ${brief.spatialRhythm} inform spacing.`
@@ -741,8 +1034,8 @@ function buildDirectedFirstScreen(
                         component: 'MainContent',
                         children: [
                             {
-                                component: 'HeroSection',
-                                props: {
+            component: 'HeroSection',
+            props: {
                                     headline: screen.headline,
                                     subheadline: screen.subheadline,
                                     ctaPrimary: screen.ctaPrimary,
@@ -1034,38 +1327,6 @@ function layoutFingerprint(node: LayoutNode): string {
     return `${node.component}(${node.children?.length ?? 0})[${childFingerprints}]`
 }
 
-function parseExploration(
-    raw: string,
-    seed: CreativeSeed,
-    intent: IntentJSON,
-    archetype: ProductArchetype,
-    brief: DirectionBrief,
-    blueprint: SceneBlueprint,
-    tokens: ExplorationTokens,
-): Exploration {
-    const parsed = JSON.parse(extractJSON(raw)) as Record<string, unknown>
-
-    const screen = parseScreen(parsed.screen, intent)
-
-    const hits = countModuleHits(screen, archetype)
-    const finalScreen = hits >= MIN_MODULE_HITS
-        ? screen
-        : fallbackScreen(intent)
-
-    const screenLayout = buildDirectedFirstScreen(intent, finalScreen, intent.domain, brief)
-
-    return {
-        id: randomId(),
-        title: safeString(parsed.title, seed.name),
-        philosophy: safeString(parsed.philosophy, seed.directive),
-        seed,
-        blueprint,
-        tokens,
-        screen: finalScreen,
-        screenLayout,
-    }
-}
-
 function fallbackScreen(intent: IntentJSON): ScreenContent {
     return {
         headline: intent.domain,
@@ -1088,70 +1349,104 @@ async function generateOneExploration(
     index: number,
     count: number,
     forcedComposition?: CompositionFamily,
+    strictBriefAnchor?: string,
 ): Promise<Exploration> {
     const brief = await generateDirectionBrief(intent, archetype, seed, references, index, count)
     if (forcedComposition) brief.compositionFamily = forcedComposition
 
     const blueprint = await generateSceneBlueprint(intent, seed, brief)
     const tokens = await generateTokens(intent, seed, archetype, brief)
+    const runtimeTokens = explorationToRuntimeTokens(tokens)
+    const { w: frameW, h: frameH } = SURFACE_RENDER[intent.surface]
 
-    const systemPrompt = buildSystemPrompt(intent, archetype, brief, seed, blueprint)
+    const layerPrompt = buildLayerPrompt(intent, brief, seed, blueprint)
     const seedBlock = formatSeedForPrompt(seed)
-    const userMessage = `Return ONLY valid JSON. No commentary. No "tokens" field — tokens are generated separately.
+    const strictBlock = strictBriefAnchor
+        ? `\nSTRICT RETRY: Previous output was off-brief. The user asked for: "${strictBriefAnchor}". Your output MUST be about this subject. No alternative interpretations.\n\n`
+        : ''
+    const userMessage = `Return ONLY valid JSON. No commentary. No "tokens" field.
+${strictBlock}PRIORITY: Product intent (subject) overrides seed. The seed gives style; the intent gives subject.
+If the intent says "404 BSOD error page", the output MUST be BSOD content (error codes, monospace) — styled by the seed, not replaced by it.
 
 ${seedBlock}
-
-Scene blueprint (MUST be obeyed by the generated hero/content hierarchy):
-${JSON.stringify(blueprint, null, 2)}
-
-Hard constraints:
-- Primary hierarchy should emphasize "${blueprint.dominantElement}".
-- Dominant hero framing target is ${blueprint.dominantCoverage}% with secondary support in the remaining space.
-${blueprint.avoidGrids ? '- Avoid equal-card grid framing or repetitive symmetric tile layouts.' : '- Secondary elements can be structured if they remain clearly subordinate.'}
-
-Director brief (design decisions — hierarchy, focal, density, alignment, rhythm):
-${JSON.stringify(brief, null, 2)}
-
-References:
-- labels: ${references.labels.join(', ') || 'none'}
-- principles: ${references.principles.join(' | ') || 'none'}
-
-Product intent:
-${JSON.stringify(intent, null, 2)}`
-    const raw = await callLLM(systemPrompt, userMessage)
-
-    try {
-        return parseExploration(raw, seed, intent, archetype, brief, blueprint, tokens)
-    } catch {
-        const retryMessage = `Your previous response was not valid JSON. You MUST return ONLY the JSON object with "title", "philosophy", "screen". No "tokens" field.
-
-${seedBlock}
-
-Scene blueprint:
-${JSON.stringify(blueprint, null, 2)}
 
 Director brief:
 ${JSON.stringify(brief, null, 2)}
 
-Product intent:
-${JSON.stringify(intent, null, 2)}`
-        const retryRaw = await callLLM(systemPrompt, retryMessage)
+Scene blueprint:
+${JSON.stringify(blueprint, null, 2)}
 
+Product intent (authority for subject matter):
+${JSON.stringify(intent, null, 2)}`
+    const raw = await callLLM(layerPrompt, userMessage)
+
+    const fallbackScr = fallbackScreen(intent)
+    let layers = parseDesignLayers(raw, blueprint, frameW, frameH)
+    if (!layers || layers.length === 0) {
+        layers = buildFallbackLayers(runtimeTokens, frameW, frameH)
+    }
+
+    const title = (() => {
         try {
-            return parseExploration(retryRaw, seed, intent, archetype, brief, blueprint, tokens)
+            const p = JSON.parse(extractJSON(raw)) as { title?: string }
+            return typeof p.title === 'string' && p.title.trim() ? p.title.trim() : seed.name
         } catch {
-            const screen = fallbackScreen(intent)
-            return {
-                id: randomId(),
-                title: seed.name,
-                philosophy: seed.directive,
-                seed,
-                blueprint,
-                tokens,
-                screen,
-                screenLayout: buildDirectedFirstScreen(intent, screen, intent.domain, brief),
-            }
+            return seed.name
         }
+    })()
+    const philosophy = (() => {
+        try {
+            const p = JSON.parse(extractJSON(raw)) as { philosophy?: string }
+            return typeof p.philosophy === 'string' && p.philosophy.trim() ? p.philosophy.trim() : seed.directive
+        } catch {
+            return seed.directive
+        }
+    })()
+
+    const screen = deriveScreenFromLayers(layers)
+    const hits = countModuleHits(screen, archetype)
+    const finalScreen = hits >= MIN_MODULE_HITS ? screen : fallbackScr
+    const designDocument = buildDesignDocument(title, layers, runtimeTokens, frameW, frameH)
+    const screenLayout = buildDirectedFirstScreen(intent, finalScreen, intent.domain, brief)
+
+    return {
+        id: randomId(),
+        title,
+        philosophy,
+        seed,
+        blueprint,
+        tokens,
+        screen: finalScreen,
+        screenLayout,
+        designDocument,
+    }
+}
+
+function briefDescription(intent: IntentJSON, sourcePrompt: string): string {
+    return sourcePrompt.trim() || `${intent.domain} — ${intent.emotionalTone}. ${intent.coreTasks.join(', ')}`
+}
+
+async function validateConceptOnBrief(
+    title: string,
+    philosophy: string,
+    intent: IntentJSON,
+    sourcePrompt: string,
+): Promise<boolean> {
+    const brief = briefDescription(intent, sourcePrompt)
+    const system = `You are a creative director checking if a design direction is on-brief.
+A different visual style is fine. A completely different subject is not.
+Answer YES or NO only. No explanation.`
+    const user = `Brief: ${brief}
+
+Direction title: ${title}
+Direction philosophy: ${philosophy}
+
+Is this direction conceptually related to the brief?`
+    try {
+        const raw = await callLLM(system, user)
+        return raw.trim().toUpperCase().startsWith('YES')
+    } catch {
+        return true
     }
 }
 
@@ -1162,6 +1457,11 @@ function hexBrightness(hex: string): number {
     const g = parseInt(clean.slice(2, 4), 16)
     const b = parseInt(clean.slice(4, 6), 16)
     return 0.299 * r + 0.587 * g + 0.114 * b
+}
+
+function explorationFingerprint(e: Exploration): string {
+    if (e.designDocument) return layerFingerprint(e.designDocument)
+    return layoutFingerprint(e.screenLayout)
 }
 
 function validateDivergence(explorations: Exploration[]): boolean {
@@ -1176,7 +1476,7 @@ function validateDivergence(explorations: Exploration[]): boolean {
 
     const bgRange = Math.max(...bgs) - Math.min(...bgs)
     const hasFontVariety = fonts.size >= 2
-    const fingerprints = new Set(explorations.map(e => layoutFingerprint(e.screenLayout)))
+    const fingerprints = new Set(explorations.map(explorationFingerprint))
     const hasDistinctStructures = fingerprints.size === explorations.length
 
     return bgRange > 30 && hasFontVariety && hasDistinctStructures
@@ -1230,11 +1530,11 @@ async function regenerateForDivergence(
 
     const usedFamilies = new Set(explorations.map(e => e.seed.family))
     const replacementSeed = pickReplacementSeed(usedFamilies)
-    const usedFingerprints = new Set(explorations.map(e => layoutFingerprint(e.screenLayout)))
+    const usedLayoutFingerprints = new Set(explorations.map(e => layoutFingerprint(e.screenLayout)))
     const forcedComposition = COMPOSITIONS.find(c => {
         const brief = fallbackBrief(intent, replacementSeed, 'wild', c, 'statement-first')
         const synthetic = buildDirectedFirstScreen(intent, explorations[0]!.screen, intent.domain, brief)
-        return !usedFingerprints.has(layoutFingerprint(synthetic))
+        return !usedLayoutFingerprints.has(layoutFingerprint(synthetic))
     })
 
     const replacement = await generateOneExploration(
@@ -1302,6 +1602,40 @@ export async function generateExplorations(
     )
 
     let explorations = settled
+
+    const offBriefIndices: number[] = []
+    await Promise.all(
+        explorations.map(async (exp, i) => {
+            const onBrief = await validateConceptOnBrief(
+                exp.title,
+                exp.philosophy,
+                intent,
+                sourcePrompt,
+            )
+            if (!onBrief) offBriefIndices.push(i)
+        }),
+    )
+    if (offBriefIndices.length > 0) {
+        const anchor = briefDescription(intent, sourcePrompt)
+        const next = [...explorations]
+        for (const i of offBriefIndices) {
+            const exp = explorations[i]!
+            const replacement = await generateOneExploration(
+                intent,
+                exp.seed,
+                archetype,
+                references,
+                i,
+                count,
+                undefined,
+                anchor,
+            )
+            next[i] = replacement
+            onProgress?.(replacement)
+        }
+        explorations = next
+    }
+
     explorations = await regenerateForDivergence(explorations, intent, archetype, seeds, references, count)
     explorations = await criticRefine(explorations, intent, archetype, seeds, references, count)
     explorations = await regenerateForDivergence(explorations, intent, archetype, seeds, references, count)

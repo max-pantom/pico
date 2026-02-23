@@ -47,6 +47,14 @@ export type CardMorphology = 'flat' | 'elevated' | 'bordered' | 'panel'
 export type TableMorphology = 'dense' | 'striped' | 'minimal'
 export type ButtonMorphology = 'label' | 'icon-label' | 'pill'
 export type { SceneBlueprint, SceneStrategy } from '../pipeline/sceneStrategies'
+export type {
+    AutoLayout,
+    DesignDocument,
+    DesignFrame,
+    DesignLayer,
+    LayerRole,
+    LayerType,
+} from '../design/frameModel'
 
 export interface RuntimeDesignTokens {
     colors: {

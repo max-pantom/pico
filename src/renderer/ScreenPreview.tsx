@@ -6,6 +6,7 @@ import { deriveDecisions } from '../pipeline/deriveDecisions'
 import type { Exploration } from '../pipeline/explorationEngine'
 import type { InterfaceSurface } from '../types/pipeline'
 import { HeroRenderer } from './HeroRenderer'
+import { LayerCanvasRenderer } from './LayerCanvasRenderer'
 import { SURFACE_RENDER } from './surfaceRender'
 
 interface Props {
@@ -48,6 +49,12 @@ export function ScreenPreview({ exploration, surface }: Props) {
 
     const scaledH = RENDER_H * scale
 
+    const content = exploration.designDocument ? (
+        <LayerCanvasRenderer doc={exploration.designDocument} />
+    ) : (
+        <HeroRenderer exploration={exploration} tokens={resolvedTokens} />
+    )
+
     return (
         <div
             ref={containerRef}
@@ -67,10 +74,10 @@ export function ScreenPreview({ exploration, surface }: Props) {
                         transformOrigin: 'top left',
                         pointerEvents: 'none',
                     }}
-                    >
-                        <TokenInjector tokens={resolvedTokens}>
-                            <HeroRenderer exploration={exploration} tokens={resolvedTokens} />
-                        </TokenInjector>
+                >
+                    <TokenInjector tokens={resolvedTokens}>
+                        {content}
+                    </TokenInjector>
                 </div>
             )}
         </div>

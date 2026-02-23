@@ -63,28 +63,69 @@ Everything should feel atmospheric and game-like — not corporate or marketing.
 DO NOT generate FooterSection or CTASection.`,
 }
 
-function buildExpansionPrompt(intent: IntentJSON): string {
+function buildDirectionDNA(exploration: Exploration): string {
+    const t = exploration.tokens
+    const b = exploration.blueprint
+    return `Background color: ${t.colors.background}
+Surface color: ${t.colors.surface}
+Primary color: ${t.colors.primary}
+Text color: ${t.colors.text}
+Accent color: ${t.colors.accent}
+Muted color: ${t.colors.muted}
+Border color: ${t.colors.border}
+Font family: ${t.typography.fontFamily}
+Heading size: ${t.typography.headingSize}
+Heading weight: ${t.typography.headingWeight}
+Heading tracking: ${t.typography.headingTracking}
+Body size: ${t.typography.bodySize}
+Card radius: ${t.radius.card}
+Button radius: ${t.radius.button}
+Shadow: ${t.shadow}
+Scene strategy: ${b.strategy}
+Dominant element: ${b.dominantElement}
+Secondary elements: ${b.secondaryElements.join(', ')}`
+}
+
+function buildExpansionPrompt(intent: IntentJSON, exploration: Exploration): string {
     const surfaceDef = getSurfaceDefinition(intent.surface)
     const archetype = resolveArchetype(intent)
     const allowedComponents = SURFACE_COMPONENTS[intent.surface]
     const structureGuide = SURFACE_STRUCTURE_GUIDANCE[intent.surface]
+    const directionDNA = buildDirectionDNA(exploration)
 
     return `You are Pico in execution mode.
 You are a product designer, NOT a coding assistant.
 
-You are expanding a chosen direction into a complete ${surfaceDef.label}.
+You are expanding this EXACT design direction into a complete ${surfaceDef.label}.
+Do not deviate from any visual decision.
 
-CONTEXT (inform your thinking — surface awareness kicks in here, but softly):
+CHOSEN DIRECTION DNA — FOLLOW THIS EXACTLY:
+
+${directionDNA}
+
+The expanded page must look like it belongs to the same design system as the hero card the user selected.
+
+If the hero was dark — the full page is dark.
+If the hero used a specific accent color — every section uses that same accent.
+If the hero used large type — section headings use large type.
+
+PROHIBITED: introducing new colors not in the token set above.
+PROHIBITED: switching from dark to light or light to dark.
+PROHIBITED: using a different font weight or family than specified.
+PROHIBITED: changing the visual tone (e.g. from clinical to playful or vice versa).
+
+The tokens are the contract. The expansion must be legally bound to them.
+
+---
+
+CONTEXT (inform structure, not styling):
 This is a ${surfaceDef.label}. The first view is typically ${surfaceDef.firstViewLabel}.
 ${surfaceDef.expansionPrompt}
-
-Consider what makes sense for this context — but do not abandon the chosen visual DNA.
-Let the visual identity win if there's a conflict.
 
 Archetype: ${archetype.description}
 Modules that may matter: ${archetype.requiredModules.join(', ')}. Represent them where the visual identity allows.
 
-STRUCTURAL GUIDE (gentle context, not command):
+STRUCTURAL GUIDE:
 ${structureGuide}
 
 Target sections (consider these, adapt as the direction demands):
@@ -347,7 +388,7 @@ function wrapInSurfaceShell(
 }
 
 export async function expandExploration(exploration: Exploration, intent: IntentJSON): Promise<LayoutNode> {
-    const systemPrompt = buildExpansionPrompt(intent)
+    const systemPrompt = buildExpansionPrompt(intent, exploration)
     const surfaceDef = getSurfaceDefinition(intent.surface)
     const tokenSnapshot = {
         colors: exploration.tokens.colors,
@@ -363,13 +404,13 @@ Philosophy: ${exploration.philosophy}
 Creative seed (this is your authority — honor it completely):
 ${exploration.seed.directive}
 
-Visual DNA (use these to inform content tone and density):
+Token reference (exact values — use these, no substitutes):
 ${JSON.stringify(tokenSnapshot, null, 2)}
 
 First screen content (build on this foundation):
 ${JSON.stringify(exploration.screen, null, 2)}
 
-Context: This is being expanded as a ${surfaceDef.label}. Consider what makes sense for that context — but let the ${exploration.seed.name} visual identity win if there's a conflict.
+Context: This is being expanded as a ${surfaceDef.label}. Structure for that context — but the CHOSEN DIRECTION DNA in the system prompt is non-negotiable. Every section must match the hero card visually.
 
 Product intent:
 ${JSON.stringify(intent, null, 2)}`

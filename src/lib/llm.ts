@@ -11,16 +11,51 @@ const client = new Ollama({
 })
 
 const MODEL = import.meta.env.VITE_OLLAMA_MODEL || 'deepseek-v3.1:671b-cloud'
+const FALLBACK_MODEL = 'gpt-oss:20b-cloud'
+
+function formatLLMError(err: unknown): string {
+    if (err instanceof Error) {
+        const msg = err.message
+        if (msg.includes('500') || msg.toLowerCase().includes('internal server error')) {
+            return `Ollama API returned 500. Try setting VITE_OLLAMA_MODEL=gpt-oss:20b-cloud in .env (smaller model). Ensure VITE_OLLAMA_API_KEY is valid at ollama.com/settings/keys.`
+        }
+        if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+            return `Ollama API auth failed. Set VITE_OLLAMA_API_KEY in .env (create key at ollama.com/settings/keys).`
+        }
+        if (msg.includes('404') || msg.toLowerCase().includes('not found')) {
+            return `Model not found. Set VITE_OLLAMA_MODEL to a valid cloud model (e.g. gpt-oss:20b-cloud).`
+        }
+        return msg
+    }
+    return String(err)
+}
 
 export async function callLLM(system: string, user: string): Promise<string> {
-    const response = await client.chat({
-        model: MODEL,
-        messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-        ],
-    })
-    return response.message.content
+    const attempt = async (model: string): Promise<string> => {
+        const response = await client.chat({
+            model,
+            messages: [
+                { role: 'system', content: system },
+                { role: 'user', content: user },
+            ],
+        })
+        return response.message.content
+    }
+
+    try {
+        return await attempt(MODEL)
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        const is500 = msg.includes('500') || msg.toLowerCase().includes('internal server error')
+        if (is500 && MODEL !== FALLBACK_MODEL) {
+            try {
+                return await attempt(FALLBACK_MODEL)
+            } catch (fallbackErr) {
+                throw new Error(formatLLMError(fallbackErr))
+            }
+        }
+        throw new Error(formatLLMError(err))
+    }
 }
 
 function findBalancedJSON(text: string): string | null {

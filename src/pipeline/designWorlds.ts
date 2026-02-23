@@ -51,6 +51,17 @@ Composition: one dominant element, intentional negative space, curated imbalance
 Color logic: muted gallery palette, paper tones, one bold art accent.
 PROHIBITED: generic SaaS hero patterns, default card grids, standard nav bars, overly safe layout.`,
     },
+    {
+        name: 'antares-void',
+        family: 'editorial',
+        directive: `Background: pale sage #EDF2EC. The entire page is almost empty.
+Text anchored bottom-left: studio name with italic serif A.
+Description anchored top-right: small body text, no headline hierarchy.
+Live clock bottom-right as the only dynamic element.
+Small dark square bottom-left as the only non-text element.
+Whitespace IS the dominant element — 80% empty. Two anchors: text top-right, branding bottom-left.
+PROHIBITED: centered layouts, large headlines, images, decoration, dark backgrounds.`,
+    },
 
     {
         name: 'terminal-dark',
@@ -87,6 +98,43 @@ Typography: modern sans, small labels, refined scale.
 Composition: minimal elements, strong spacing, quiet confidence.
 Color logic: charcoal surfaces, subtle border contrast, tiny accent usage.
 PROHIBITED: heavy glow, neon overload, busy textures, unnecessary gradients, excessive animation.`,
+    },
+    {
+        name: 'synq-protocol',
+        family: 'dark',
+        directive: `Pure black #000000 background. White text only. No color accent whatsoever.
+Right side: geometric dashed circle grid pattern as the dominant visual mass.
+Left side: large weight-contrast headline — light then heavy.
+Navigation: right-aligned with a white-border CTA box. Unusual placement.
+PROHIBITED: any color, gradients, images, warm tones, rounded shapes.`,
+    },
+    {
+        name: 'trading-terminal',
+        family: 'dark',
+        directive: `Near-black #0D0D14 with dark blue-tinted panels #161622.
+Everything is small — 11-13px. Maximum information density.
+Purple #8B5CF6 as the only accent, used on active states.
+Panels tile edge to edge. Borders are barely visible.
+PROHIBITED: whitespace, large text, images, decoration, warm tones.`,
+    },
+    {
+        name: 'airsend-fintech',
+        family: 'dark',
+        directive: `Navy gradient background top-to-bottom: #1A2340 to #2A4060 to #3A6080.
+White headline, weight 700, centered. Sky blue #4AABF7 on pill badge element.
+Product screenshot in laptop frame below headline — large and prominent.
+Pill-shape buttons. Small ghost CTA beside solid CTA.
+PROHIBITED: warm colors, dark black, electric neon, serif fonts.`,
+    },
+    {
+        name: 'new-money-cinematic',
+        family: 'dark',
+        directive: `Full-bleed street photography as the entire background — no padding, no border.
+Italic serif headline, uppercase, 96px+, overlaid bottom-left on photo.
+Navigation: uppercase sans with bracket-style CTA [CREATE AN ACCOUNT] in emerald green.
+Emerald #00FF88 used only on the primary CTA and one nav bracket — nowhere else.
+Monospace body text. Dark grid-line sections below the hero.
+PROHIBITED: warm backgrounds, rounded corners, centered layouts, sans-serif headlines.`,
     },
 
     {
@@ -162,6 +210,25 @@ Composition: outlines, grids, precise spacing, schematic feel.
 Color logic: off-white, ink black, one blueprint accent (blue or green).
 PROHIBITED: soft gradients, glass blur, playful shapes, luxury gold accents, heavy drop shadows.`,
     },
+    {
+        name: 'norden-minimal',
+        family: 'minimal',
+        directive: `Pure white background with faint topographic contour lines at ~4% opacity.
+Typography: light weight 300 geometric sans. Large but not heavy.
+Small label 'NEW COLLECTION' in uppercase tracking — far left, small size.
+Product photography bleeds off the bottom edge — no bottom margin.
+Arrow CTA far right, understated. Crosshair (+) symbol as decorative detail.
+PROHIBITED: color accents, heavy type weights, gradients, dark backgrounds.`,
+    },
+    {
+        name: 'alfred-saas',
+        family: 'minimal',
+        directive: `White background. Clean geometric sans. Weight 600 headline.
+Hero: product screenshot displayed large, filling most of the lower viewport.
+Behind the screenshot: horizontal stripe gradient — soft purple, navy, dark blue.
+Logo strip above screenshot: muted gray brand logos.
+PROHIBITED: dark page background, heavy decoration, electric colors.`,
+    },
 
     {
         name: 'craft-studio',
@@ -198,6 +265,15 @@ Typography: readable serif or friendly sans, subtle emphasis.
 Composition: notebook sections, gentle dividers, light structure.
 Color logic: paper background, graphite text, small ink accent.
 PROHIBITED: harsh tech panels, neon colors, heavy shadows, loud marketing hero blocks.`,
+    },
+    {
+        name: 'claura-warm',
+        family: 'warm',
+        directive: `Background: warm blush #F2EDE8 — soft, inviting, feminine.
+Typography: serif, weight 400, not bold. Elegant restraint.
+Hero image: dot grid pattern over warm-to-cool gradient (coral to blue).
+Buttons: pill shape, dark brown fill, white text. One solid, one ghost.
+PROHIBITED: dark backgrounds, heavy type, electric colors, sharp corners.`,
     },
 
     {
@@ -236,6 +312,25 @@ Composition: strong grid breaks, intentional negative space, bold blocks.
 Color logic: minimal palette, one punch accent used decisively.
 PROHIBITED: generic nav + hero + three cards pattern, tiny timid headings, purely functional tool layout.`,
     },
+    {
+        name: 'creators-streetwear',
+        family: 'expressive',
+        directive: `Background: electric lime #D4FF00 — the whole page IS lime.
+Typography: condensed sans, weight 900, uppercase only, massive scale.
+Primary color: hot pink #FF1493 used aggressively in headlines and accents.
+Zero padding anywhere — elements bleed to all edges.
+Images scatter between text without alignment — intentional chaos.
+PROHIBITED: rounded corners, subtle colors, whitespace as value, gentle tone.`,
+    },
+    {
+        name: 'bsod-brutalist',
+        family: 'expressive',
+        directive: `Solid #0000AA blue — the entire screen is this exact blue.
+Monospace font only. Small text. Nothing large or heroic.
+All content centered. Error code in a white-bordered box.
+One emoji as decoration. Pure concept — the medium IS the message.
+PROHIBITED: sans-serif, anything resembling a normal website, images, gradients.`,
+    },
 
     {
         name: 'glass-premium',
@@ -264,6 +359,15 @@ Composition: large negative space, spotlight cards, curated grouping.
 Color logic: neutral gallery tones with one tasteful accent.
 PROHIBITED: dense dashboards, loud saturation, glitch effects, busy decorative elements.`,
     },
+    {
+        name: 'twentyfirst-glass',
+        family: 'spatial',
+        directive: `Near-black #0A0A12 background with scattered gear icons at 8% opacity as texture.
+Floating dark cards with subtle borders — glass depth without full transparency.
+Typography: small, weight 400, nothing heroic. Interface text only.
+Accent: muted blue-purple, used sparingly on interactive elements.
+PROHIBITED: light backgrounds, large headlines, warm colors, bright accents.`,
+    },
 ]
 
 function groupByFamily(seeds: CreativeSeed[]) {
@@ -276,19 +380,25 @@ function groupByFamily(seeds: CreativeSeed[]) {
     return map
 }
 
-function randInt(maxExclusive: number) {
+function secureRandInt(maxExclusive: number): number {
+    if (maxExclusive <= 0) return 0
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const buf = new Uint32Array(1)
+        crypto.getRandomValues(buf)
+        return buf[0]! % maxExclusive
+    }
     return Math.floor(Math.random() * maxExclusive)
 }
 
 function pickOne<T>(arr: T[]): T {
-    return arr[randInt(arr.length)]!
+    return arr[secureRandInt(arr.length)]!
 }
 
 function shuffle<T>(arr: T[]): T[] {
     const a = [...arr]
     for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j]!, a[i]!]
+        const j = secureRandInt(i + 1)
+        ;[a[i], a[j]] = [a[j]!, a[i]!]
     }
     return a
 }
@@ -320,8 +430,8 @@ export function pickDivergentSeeds(count: 1 | 2 | 4): CreativeSeed[] {
 
 export function pickReplacementSeed(usedFamilies: Set<string>): CreativeSeed {
     const candidates = SEED_LIBRARY.filter(s => !usedFamilies.has(s.family))
-    if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)]!
-    return SEED_LIBRARY[Math.floor(Math.random() * SEED_LIBRARY.length)]!
+    if (candidates.length) return candidates[secureRandInt(candidates.length)]!
+    return SEED_LIBRARY[secureRandInt(SEED_LIBRARY.length)]!
 }
 
 export function formatSeedForPrompt(seed: CreativeSeed): string {
