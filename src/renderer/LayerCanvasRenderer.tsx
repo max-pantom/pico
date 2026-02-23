@@ -159,7 +159,18 @@ function LayerNode({
     }
 
     if (layer.type === 'image') {
-        return <div style={style} title={layer.content} />
+        const placeholderBg = layer.fill
+            ? undefined
+            : `repeating-linear-gradient(45deg, transparent, transparent 10px, ${tokens.colors.border}22 10px, ${tokens.colors.border}22 11px)`
+        return (
+            <div
+                style={{
+                    ...style,
+                    ...(placeholderBg && { background: placeholderBg }),
+                }}
+                title={layer.content}
+            />
+        )
     }
 
     return <div style={style} />

@@ -127,16 +127,15 @@ EXACTLY 6 LAYERS (required)
 
 Layer 1: background — always. x=0, y=0, width="fill", height="fill", fill="#hex".
 Layer 2: dominant-visual — main visual element (shape, gradient, or image placeholder).
-Layer 3: headline — primary text. Use frame with autoLayout and one text child.
-Layer 4: supporting-text — secondary text or supporting element.
+Layer 3: headline — primary text. Use type "text" with x, y, width, content, fontSize, fontWeight (simpler than frame).
+Layer 4: supporting-text — secondary text. Same: type "text" with x, y, width, content, fontSize.
 Layer 5: control — CTA button or interactive element.
-
 Layer 6: ambient — one atmospheric detail (decorative shape, line, glow, subtle pattern).
 
 A great designer makes six layers feel like twenty. Restraint is the design.
 
-Keep each layer to at most 8 properties. Use "fill" or "hug" for width/height when appropriate.
-Text must live inside a frame with autoLayout. Never free-floating text with x,y.
+Keep each layer to at most 8 properties. Prefer simple text layers (type "text") over frames — less nesting, fewer parse errors.
+If you use a frame, it must have at most 2 children.
 
 OUTPUT (valid JSON only):
 {
@@ -145,8 +144,8 @@ OUTPUT (valid JSON only):
   "layers": [
     { "id": "bg", "role": "background", "type": "shape", "x": 0, "y": 0, "width": "fill", "height": "fill", "fill": "#hex", "zIndex": 0 },
     { "id": "dom", "role": "dominant-visual", "type": "shape", "x": 0, "y": 0, "width": ${w}, "height": ${Math.round(h * 0.6)}, "fill": "#hex", "zIndex": 1 },
-    { "id": "hl", "role": "headline", "type": "frame", "x": 48, "y": 120, "width": 600, "height": "hug", "zIndex": 2, "autoLayout": { "direction": "vertical", "gap": 8, "padding": 0, "alignment": "start" }, "children": [{ "type": "text", "content": "Headline", "fontSize": 48, "fontWeight": 700, "width": "fill", "height": "hug", "zIndex": 0 }] },
-    { "id": "sub", "role": "supporting-text", "type": "frame", "x": 48, "y": 220, "width": 500, "height": "hug", "zIndex": 3, "autoLayout": { "direction": "vertical", "gap": 4, "padding": 0, "alignment": "start" }, "children": [{ "type": "text", "content": "Subtext", "fontSize": 16, "fontWeight": 400, "width": "fill", "height": "hug", "zIndex": 0 }] },
+    { "id": "hl", "role": "headline", "type": "text", "x": 48, "y": 120, "width": 600, "height": "hug", "content": "Headline", "fontSize": 48, "fontWeight": 700, "zIndex": 2 },
+    { "id": "sub", "role": "supporting-text", "type": "text", "x": 48, "y": 220, "width": 500, "height": "hug", "content": "Subtext", "fontSize": 16, "fontWeight": 400, "zIndex": 3 },
     { "id": "cta", "role": "control", "type": "shape", "x": 48, "y": 320, "width": 160, "height": 48, "fill": "#hex", "radius": 8, "content": "Get Started", "zIndex": 4 },
     { "id": "amb", "role": "ambient", "type": "shape", "x": 0, "y": 0, "width": 200, "height": 200, "opacity": 0.15, "fill": "#hex", "zIndex": 5 }
   ]
@@ -283,7 +282,9 @@ interface LayerBox {
     height: number
 }
 
-const NON_OVERLAP_ROLES = new Set<LayerRole>(['headline', 'supporting-text', 'control', 'navigation'])
+const NON_OVERLAP_ROLES = new Set<LayerRole>([
+    'dominant-visual', 'headline', 'supporting-text', 'control', 'navigation', 'ambient',
+])
 
 function intersects(a: LayerBox, b: LayerBox): boolean {
     return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y)
@@ -408,6 +409,12 @@ function normalizeDesignLayers(layers: DesignLayer[], frameW: number, frameH: nu
 }
 
 const MAX_LAYERS = 6
+const MIN_CONTENT_LAYERS = 2
+
+function hasEnoughContent(layers: DesignLayer[]): boolean {
+    const contentLayers = layers.filter(l => l.role !== 'background')
+    return contentLayers.length >= MIN_CONTENT_LAYERS
+}
 
 function parseDesignLayers(
     raw: string,
@@ -1378,11 +1385,15 @@ ${JSON.stringify(blueprint, null, 2)}
 
 Product intent (authority for subject matter):
 ${JSON.stringify(intent, null, 2)}`
-    const raw = await callLLM(layerPrompt, userMessage)
+    let raw = await callLLM(layerPrompt, userMessage)
 
     const fallbackScr = fallbackScreen(intent)
     let layers = parseDesignLayers(raw, blueprint, frameW, frameH)
-    if (!layers || layers.length === 0) {
+    if (!layers || !hasEnoughContent(layers)) {
+        raw = await callLLM(layerPrompt, userMessage + '\n\nRetry: Return ONLY valid JSON with exactly 6 layers.')
+        layers = parseDesignLayers(raw, blueprint, frameW, frameH)
+    }
+    if (!layers || !hasEnoughContent(layers)) {
         layers = buildFallbackLayers(runtimeTokens, frameW, frameH)
     }
 
