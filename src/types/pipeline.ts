@@ -54,7 +54,7 @@ export type {
     DesignLayer,
     LayerRole,
     LayerType,
-} from '../design/frameModel'
+} from '../legacy-generation/design/frameModel'
 
 export interface RuntimeDesignTokens {
     colors: {
@@ -298,6 +298,38 @@ export interface AppState {
     handlers: AppStateHandler[]
 }
 
+/** Design critic issue severity */
+export type CriticSeverity = 'critical' | 'high' | 'medium' | 'low'
+
+/** Design law category the critic evaluates against */
+export type CriticCategory =
+    | 'hierarchy'
+    | 'composition'
+    | 'accessibility'
+    | 'interaction'
+    | 'rhythm'
+    | 'product-appropriateness'
+    | 'contrast'
+    | 'layout-intent'
+
+export interface DesignCriticIssue {
+    type: CriticCategory
+    problem: string
+    severity: CriticSeverity
+    suggestion?: string
+}
+
+export interface DesignCriticOutput {
+    screenType: string
+    primaryGoal: string
+    issues: DesignCriticIssue[]
+    criticalFlaws: string[]
+    missingElements: string[]
+    layoutCorrections: string[]
+    priorityFixes: string[]
+    passed: boolean
+}
+
 export interface PipelineOutput {
     intent: IntentJSON
     decisions: DesignDecisions
@@ -308,6 +340,7 @@ export interface PipelineOutput {
     reactSourceCode?: string
     qualityScore: number
     qualityIssues: string[]
+    criticOutput?: DesignCriticOutput
 }
 
-export type PipelineStage = 'idle' | 'parsing' | 'reasoning' | 'building' | 'rendering' | 'done' | 'error'
+export type PipelineStage = 'idle' | 'parsing' | 'reasoning' | 'building' | 'critiquing' | 'rendering' | 'done' | 'error'

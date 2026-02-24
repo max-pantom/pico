@@ -1,12 +1,11 @@
-import { AppShell } from './AppShell'
-import { Canvas } from './Canvas'
-import { PromptBar } from './PromptBar'
+import { ElectronShell } from './ElectronShell'
+import { CompareView } from './CompareView'
+
+const isElectron = typeof window !== 'undefined' && 'pico' in window
 
 export default function App() {
-    return (
-        <AppShell
-            canvas={<Canvas />}
-            promptBar={<PromptBar />}
-        />
-    )
+    if (isElectron) {
+        return <ElectronShell />
+    }
+    return <CompareView />
 }
