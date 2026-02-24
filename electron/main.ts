@@ -1,5 +1,6 @@
 import 'dotenv/config'
-import { app, BrowserWindow, Menu, ipcMain, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, Menu, clipboard, ipcMain, shell, type MenuItemConstructorOptions } from 'electron'
+import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import Store from 'electron-store'
@@ -80,6 +81,20 @@ function buildAppMenu(): Menu {
       ],
     },
     {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'pasteAndMatchStyle' },
+        { role: 'delete' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
       label: 'Run',
       submenu: [
         {
@@ -122,6 +137,45 @@ function buildAppMenu(): Menu {
   return Menu.buildFromTemplate(template)
 }
 
+function attachContextMenu(win: BrowserWindow): void {
+  win.webContents.on('context-menu', (_, params) => {
+    const hasTextSelection = Boolean(params.selectionText?.trim())
+    const menu = Menu.buildFromTemplate([
+      { role: 'undo', enabled: params.editFlags.canUndo },
+      { role: 'redo', enabled: params.editFlags.canRedo },
+      { type: 'separator' },
+      { role: 'cut', enabled: params.isEditable },
+      { role: 'copy', enabled: hasTextSelection },
+      { role: 'paste', enabled: params.isEditable },
+      { role: 'selectAll' },
+      { type: 'separator' },
+      {
+        label: 'Copy Link',
+        enabled: Boolean(params.linkURL),
+        click: () => {
+          if (params.linkURL) clipboard.writeText(params.linkURL)
+        },
+      },
+      {
+        label: 'Open Link in Browser',
+        enabled: Boolean(params.linkURL),
+        click: () => {
+          if (params.linkURL) void shell.openExternal(params.linkURL)
+        },
+      },
+      {
+        label: 'Inspect Element',
+        enabled: isDev,
+        click: () => {
+          win.webContents.inspectElement(params.x, params.y)
+        },
+      },
+    ])
+
+    menu.popup({ window: win })
+  })
+}
+
 function persistWindowBounds(win: BrowserWindow): void {
   if (win.isDestroyed()) return
   const bounds = win.getBounds()
@@ -132,6 +186,11 @@ function persistWindowBounds(win: BrowserWindow): void {
     y: bounds.y,
     isMaximized: win.isMaximized(),
   })
+}
+
+function getRuntimeWindowIconPath(): string | undefined {
+  const iconPath = join(process.cwd(), 'build', 'icons', 'icon.png')
+  return existsSync(iconPath) ? iconPath : undefined
 }
 
 function createWindow(): void {
@@ -150,12 +209,15 @@ function createWindow(): void {
     },
     titleBarStyle: 'hidden',
     trafficLightPosition: isMac ? { x: 14, y: 12 } : undefined,
+    icon: getRuntimeWindowIconPath(),
     show: false,
   })
 
   if (persisted.isMaximized) {
     win.maximize()
   }
+
+  attachContextMenu(win)
 
   win.on('resize', () => persistWindowBounds(win))
   win.on('move', () => persistWindowBounds(win))

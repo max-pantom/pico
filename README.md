@@ -33,6 +33,20 @@ Build outputs:
 npm run desktop:start
 ```
 
+## Package Desktop App
+
+```bash
+npm run desktop:dist
+```
+
+Install icon assets first:
+
+- `build/icons/icon.icns`
+- `build/icons/icon.ico`
+- `build/icons/icon.png`
+
+See `build/icons/README.md` for icon conversion instructions.
+
 ## Web-only Commands
 
 ```bash

@@ -28,7 +28,22 @@ function looksLikeCode(text: string): boolean {
   )
 }
 
+function looksLikeHTML(text: string): boolean {
+  const t = text.trim()
+  return (
+    t.length > 10 &&
+    (t.startsWith('<!DOCTYPE') ||
+      t.startsWith('<html') ||
+      (t.startsWith('<') && (t.includes('<div') || t.includes('<body') || t.includes('<section') || t.includes('<main'))))
+  )
+}
+
 function extractCodeFromOutput(stdout: string): string {
+  const htmlMatch = stdout.match(/```(?:html)\s*\n([\s\S]*?)```/)
+  if (htmlMatch) {
+    const code = htmlMatch[1].trim()
+    if (looksLikeHTML(code)) return code
+  }
   const match = stdout.match(/```(?:tsx|ts|jsx|js)\s*\n([\s\S]*?)```/)
   if (match) {
     const code = match[1].trim()
@@ -37,8 +52,10 @@ function extractCodeFromOutput(stdout: string): string {
   const match2 = stdout.match(/```\s*\n([\s\S]*?)```/)
   if (match2) {
     const code = match2[1].trim()
+    if (looksLikeHTML(code)) return code
     return looksLikeCode(code) ? code : ''
   }
+  if (looksLikeHTML(stdout.trim())) return stdout.trim()
   return looksLikeCode(stdout) ? stdout.trim() : ''
 }
 

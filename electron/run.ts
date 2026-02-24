@@ -56,8 +56,9 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
         }
 
         try {
-          emit(runId, { source: 'system', kind: 'status', stage: 'build', message: 'Spinning baseline preview...' })
-          await previewManager.spin(runId, 'baseline', { 'App.tsx': baselineCode })
+          const wsPath = getSelectedPath()
+          emit(runId, { source: 'system', kind: 'status', stage: 'build', message: wsPath ? 'Starting preview from output folder...' : 'Spinning baseline preview...' })
+          await previewManager.spin(runId, 'baseline', { 'App.tsx': baselineCode }, wsPath)
         } catch (e) {
           emit(runId, { source: 'system', kind: 'error', stage: 'build', message: `Baseline preview: ${e instanceof Error ? e.message : String(e)}` })
         }
@@ -79,7 +80,6 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
         })
         emit(runId, { source: 'system', kind: 'status', stage: 'done', message: 'Generation failed' })
       } finally {
-        previewManager.stop(runId)
         activeRuns.delete(runId)
       }
     })()
@@ -88,7 +88,7 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
   })
 
   ipc.handle('run:improve', async (_: unknown, params: RunImproveParams): Promise<RunImproveResult> => {
-    const { runId, baselineCode, prompt, instruction } = params
+    const { runId, baselineCode, prompt, instruction, seedpack } = params
     const cancelRef = { cancelled: false }
     activeRuns.set(runId, { cancel: () => { cancelRef.cancelled = true } })
 
@@ -99,14 +99,15 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
         baselineCode,
         prompt,
         cancelRef,
-        undefined,
+        seedpack,
         instruction
       )
       if (cancelRef.cancelled) return { success: false, error: 'Cancelled' }
 
       try {
-        emit(runId, { source: 'system', kind: 'status', stage: 'build', message: 'Spinning improved preview...' })
-        await previewManager.spin(runId, 'improved', { 'App.tsx': improvedCode })
+        const wsPath = getSelectedPath()
+        emit(runId, { source: 'system', kind: 'status', stage: 'build', message: wsPath ? 'Updating preview from output folder...' : 'Spinning improved preview...' })
+        await previewManager.spin(runId, 'improved', { 'App.tsx': improvedCode }, wsPath)
       } catch (e) {
         emit(runId, { source: 'system', kind: 'error', stage: 'build', message: `Improved preview: ${e instanceof Error ? e.message : String(e)}` })
       }
@@ -148,5 +149,37 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
       emit(runId, { source: 'system', kind: 'status', stage: 'done', message: 'Cancelled' })
     }
     previewManager.stop(runId)
+  })
+
+  ipc.handle('preview:refreshBaseline', async (_: unknown, params: { runId: string; code: string; workspacePath?: string | null }) => {
+    const { runId, code, workspacePath } = params
+    if (!code?.trim()) return
+    if (workspacePath) {
+      previewManager.writeToWorkspace(workspacePath, { 'App.tsx': code })
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win) {
+        win.webContents.send('run:event', {
+          runId,
+          ts: Date.now(),
+          source: 'system',
+          kind: 'preview',
+          stage: 'build',
+          message: 'Preview updated',
+          meta: { port: 5174, side: 'baseline' },
+        })
+      }
+    } else {
+      previewManager.stop(runId)
+      try {
+        await previewManager.spin(runId, 'baseline', { 'App.tsx': code }, null)
+      } catch (e) {
+        emit(runId, {
+          source: 'system',
+          kind: 'error',
+          stage: 'build',
+          message: `Preview refresh: ${e instanceof Error ? e.message : String(e)}`,
+        })
+      }
+    }
   })
 }

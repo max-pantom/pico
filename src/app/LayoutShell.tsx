@@ -6,9 +6,9 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { StreamEvent } from '../types/stream'
-import { StreamConsole } from './StreamConsole'
-import { DiffView } from './DiffView'
-import { ChatPanel, parseMention, type ChatMessage } from './ChatPanel'
+import { StreamAndTerminal } from './StreamAndTerminal.tsx'
+import { DiffView } from './DiffView.tsx'
+import { ChatPanel, parseMention, type ChatMessage } from './ChatPanel.tsx'
 import { diffLines } from 'diff'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -185,11 +185,15 @@ export function LayoutShell() {
 
   const handleApplyPicoFixes = () => {
     if (improvedCode) {
-      setBaselineCode(improvedCode)
+      const codeToApply = improvedCode
+      setBaselineCode(codeToApply)
       setImprovedCode('')
       setCritic(null)
       setBaselinePort(null)
       setImprovedPort(null)
+      if (runId && window.pico?.preview) {
+        void window.pico.preview.refreshBaseline({ runId, code: codeToApply, workspacePath })
+      }
     }
   }
 
@@ -232,7 +236,7 @@ export function LayoutShell() {
 
   useEffect(() => {
     if (!window.pico?.menu) return
-    return window.pico.menu.onAction((action) => {
+    return window.pico.menu.onAction((action: string) => {
       const handlers = menuHandlersRef.current
       if (!handlers) return
 
@@ -419,13 +423,21 @@ export function LayoutShell() {
         </button>
       )}
 
-      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden flex-col">
+      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden flex-col relative">
         {error && (
-          <div className="absolute top-4 left-[300px] right-4 z-10 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-sm text-red-300">
-            {error}
+          <div className="absolute top-2 left-2 right-2 z-20 flex items-center gap-3 rounded-lg border border-red-700/80 bg-red-950/90 px-4 py-3 text-sm text-red-200 shadow-lg">
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => setError('')}
+              className="shrink-0 rounded px-2 py-1 text-red-400 hover:bg-red-900/50 hover:text-red-100"
+              aria-label="Dismiss error"
+            >
+              Dismiss
+            </button>
           </div>
         )}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden flex-col">
+          <div className="flex flex-1 min-h-0 overflow-hidden">
           <Column
             title="Agent"
             subtitle="Baseline output"
@@ -437,6 +449,8 @@ export function LayoutShell() {
             view={uiState.agentView}
             onViewChange={setAgentView}
             patchLines={baselinePatchLines}
+            emptyCodeHint="Generate to see baseline code"
+            emptyPreviewHint="Generate to see UI preview"
           />
           <div className="w-px shrink-0 bg-neutral-800" />
           <Column
@@ -450,7 +464,10 @@ export function LayoutShell() {
             view={uiState.picoView}
             onViewChange={setPicoView}
             patchLines={improvedPatchLines}
+            emptyCodeHint="Click Improve to see improved code"
+            emptyPreviewHint="Click Improve to see UI preview"
           />
+          </div>
         </div>
       </div>
 
@@ -522,6 +539,8 @@ function Column({
   view,
   onViewChange,
   patchLines,
+  emptyCodeHint = 'Output code will appear here',
+  emptyPreviewHint = 'Output preview will appear here',
 }: {
   title: string
   subtitle: string
@@ -533,11 +552,14 @@ function Column({
   view: 'ui' | 'code'
   onViewChange: (view: 'ui' | 'code') => void
   patchLines: Set<number>
+  emptyCodeHint?: string
+  emptyPreviewHint?: string
 }) {
   const fileNames = Object.keys(files)
   const [activeFile, setActiveFile] = useState(fileNames[0] ?? '')
   const selectedFile = fileNames.includes(activeFile) ? activeFile : (fileNames[0] ?? '')
   const displayedCode = files[selectedFile] ?? code
+  const isHTML = displayedCode.trim().startsWith('<!') || displayedCode.trim().startsWith('<html')
 
   return (
     <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-neutral-950">
@@ -569,7 +591,7 @@ function Column({
               />
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center text-neutral-600 text-sm">
-                {code ? 'Preview starting...' : 'Run a prompt to see output'}
+                {code ? 'Preview starting...' : emptyPreviewHint}
               </div>
             )}
           </div>
@@ -595,7 +617,7 @@ function Column({
               <div className="flex-1 overflow-auto p-3">
                 <div className="rounded-lg border border-neutral-800 overflow-hidden">
                   <SyntaxHighlighter
-                    language="tsx"
+                    language={isHTML ? 'html' : 'tsx'}
                     style={oneDark}
                     showLineNumbers
                     customStyle={{
@@ -618,13 +640,13 @@ function Column({
               </div>
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center text-neutral-600 text-sm">
-                Run a prompt to see output
+                {emptyCodeHint}
               </div>
             )}
           </div>
         )}
       </div>
-      <StreamConsole events={events} />
+      <StreamAndTerminal events={events} />
     </div>
   )
 }

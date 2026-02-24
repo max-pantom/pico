@@ -19,9 +19,25 @@ export interface PicoAPI {
     pickFolder: () => Promise<string | null>
     getSelectedPath: () => Promise<string | null>
   }
+  export: {
+    toWorkspace: (files: Record<string, string>) => Promise<{ success: boolean; error?: string }>
+  }
+  preview: {
+    refreshBaseline: (params: { runId: string; code: string; workspacePath?: string | null }) => Promise<void>
+    onTerminalOutput: (cb: (text: string) => void) => () => void
+  }
   codex: {
     run: (prompt: string, workspacePath: string) => Promise<string>
     onProgress: (cb: (event: { type: string; data?: unknown }) => void) => () => void
+  }
+  run: {
+    start: (params: { prompt: string; directionCount?: 1 | 2 | 4; workspacePath?: string; seedpack?: string }) => Promise<{ runId: string }>
+    improve: (params: { runId: string; baselineCode: string; prompt: string; instruction?: string; seedpack?: string }) => Promise<{ success: boolean; error?: string }>
+    cancel: (runId: string) => Promise<void>
+    onEvent: (cb: (event: { runId: string; ts: number; source: string; kind: string; stage: string; message?: string; meta?: Record<string, unknown> }) => void) => () => void
+  }
+  menu: {
+    onAction: (cb: (action: string) => void) => () => void
   }
 }
 

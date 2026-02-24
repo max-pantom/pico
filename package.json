@@ -13,7 +13,45 @@
     "electron:build": "tsc -b && vite build",
     "desktop:dev": "vite",
     "desktop:build": "tsc -b && vite build",
-    "desktop:start": "npm run desktop:build && electron ."
+    "desktop:start": "npm run desktop:build && electron .",
+    "desktop:dist": "npm run desktop:build && electron-builder",
+    "desktop:dist:dir": "npm run desktop:build && electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.pico.desktop",
+    "productName": "Pico",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icons/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icons/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "icon": "build/icons",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
+    }
   },
   "dependencies": {
     "diff": "^8.0.3",
@@ -40,6 +78,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^40.6.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

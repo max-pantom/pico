@@ -36,4 +36,39 @@ contextBridge.exposeInMainWorld('pico', {
       return () => ipcRenderer.removeListener('codex:progress', sub)
     },
   },
+  // Run (Codex generate + Pico improve)
+  run: {
+    start: (params: { prompt: string; directionCount?: 1 | 2 | 4; workspacePath?: string; seedpack?: string }) =>
+      ipcRenderer.invoke('run:start', params),
+    improve: (params: { runId: string; baselineCode: string; prompt: string; instruction?: string; seedpack?: string }) =>
+      ipcRenderer.invoke('run:improve', params),
+    cancel: (runId: string) => ipcRenderer.invoke('run:cancel', runId),
+    onEvent: (cb: (event: { runId: string; ts: number; source: string; kind: string; stage: string; message?: string; meta?: Record<string, unknown> }) => void) => {
+      const sub = (_: unknown, event: { runId: string; ts: number; source: string; kind: string; stage: string; message?: string; meta?: Record<string, unknown> }) => cb(event)
+      ipcRenderer.on('run:event', sub)
+      return () => ipcRenderer.removeListener('run:event', sub)
+    },
+  },
+  // Export
+  export: {
+    toWorkspace: (files: Record<string, string>) => ipcRenderer.invoke('export:toWorkspace', files),
+  },
+  // Preview (refresh baseline when applying Pico fixes)
+  preview: {
+    refreshBaseline: (params: { runId: string; code: string; workspacePath?: string | null }) =>
+      ipcRenderer.invoke('preview:refreshBaseline', params),
+    onTerminalOutput: (cb: (text: string) => void) => {
+      const sub = (_: unknown, text: string) => cb(text)
+      ipcRenderer.on('preview:terminal', sub)
+      return () => ipcRenderer.removeListener('preview:terminal', sub)
+    },
+  },
+  // Menu actions
+  menu: {
+    onAction: (cb: (action: string) => void) => {
+      const sub = (_: unknown, action: string) => cb(action)
+      ipcRenderer.on('menu:action', sub)
+      return () => ipcRenderer.removeListener('menu:action', sub)
+    },
+  },
 })
