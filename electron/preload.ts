@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('pico', {
   workspace: {
     pickFolder: () => ipcRenderer.invoke('workspace:pickFolder'),
     getSelectedPath: () => ipcRenderer.invoke('workspace:getSelectedPath'),
+    listFiles: (rootPath?: string | null) => ipcRenderer.invoke('workspace:listFiles', rootPath),
+    readFile: (params: { rootPath?: string | null; relativePath: string }) =>
+      ipcRenderer.invoke('workspace:readFile', params),
   },
   // Codex
   codex: {
@@ -57,6 +60,8 @@ contextBridge.exposeInMainWorld('pico', {
   preview: {
     refreshBaseline: (params: { runId: string; code: string; workspacePath?: string | null }) =>
       ipcRenderer.invoke('preview:refreshBaseline', params),
+    runCommand: (params: { command: string; cwd?: string | null; side?: 'baseline' | 'improved' }) =>
+      ipcRenderer.invoke('terminal:run', params),
     onTerminalOutput: (cb: (text: string) => void) => {
       const sub = (_: unknown, text: string) => cb(text)
       ipcRenderer.on('preview:terminal', sub)

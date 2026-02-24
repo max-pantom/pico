@@ -55,12 +55,16 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
           return
         }
 
-        try {
-          const wsPath = getSelectedPath()
-          emit(runId, { source: 'system', kind: 'status', stage: 'build', message: wsPath ? 'Starting preview from output folder...' : 'Spinning baseline preview...' })
-          await previewManager.spin(runId, 'baseline', { 'App.tsx': baselineCode }, wsPath)
-        } catch (e) {
-          emit(runId, { source: 'system', kind: 'error', stage: 'build', message: `Baseline preview: ${e instanceof Error ? e.message : String(e)}` })
+        const wsPath = getSelectedPath()
+        if (!wsPath && baselineCode.trim()) {
+          try {
+            emit(runId, { source: 'system', kind: 'status', stage: 'build', message: 'Spinning baseline preview...' })
+            await previewManager.spin(runId, 'baseline', { 'App.tsx': baselineCode }, null)
+          } catch (e) {
+            emit(runId, { source: 'system', kind: 'error', stage: 'build', message: `Baseline preview: ${e instanceof Error ? e.message : String(e)}` })
+          }
+        } else if (wsPath) {
+          emit(runId, { source: 'system', kind: 'status', stage: 'build', message: 'Codex runs in output folder. Check terminal for dev server.' })
         }
         if (cancelRef.cancelled) return
 

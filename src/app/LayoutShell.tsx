@@ -54,6 +54,9 @@ export function LayoutShell() {
   const [agentView, setAgentView] = useState<'ui' | 'code'>('ui')
   const [picoView, setPicoView] = useState<'ui' | 'code'>('ui')
   const [workspacePath, setWorkspacePath] = useState<string | null>(null)
+  const [workspaceFiles, setWorkspaceFiles] = useState<Record<string, string>>({})
+  const [workspaceFileList, setWorkspaceFileList] = useState<string[]>([])
+  const [selectedWorkspaceFile, setSelectedWorkspaceFile] = useState<string | null>(null)
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
@@ -67,9 +70,9 @@ export function LayoutShell() {
 
   const handleAddEvent = useCallback((e: { runId: string; ts: number; source: string; kind: string; stage: string; message?: string; meta?: Record<string, unknown> }) => {
     setEvents((prev) => [...prev.slice(-199), e as StreamEvent])
-    if (e.kind === 'status' && e.meta?.baselineCode) {
+    if ((e.kind === 'status' || e.kind === 'tool') && e.meta?.baselineCode) {
       setBaselineCode(String(e.meta.baselineCode))
-      if (!e.meta?.improvedCode && agentMessageAddedRef.current !== e.runId) {
+      if (e.kind === 'status' && !e.meta?.improvedCode && agentMessageAddedRef.current !== e.runId) {
         agentMessageAddedRef.current = e.runId
         setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'agent', content: 'Generated baseline.', ts: Date.now() }])
       }
@@ -99,6 +102,77 @@ export function LayoutShell() {
       setWorkspacePath(path)
     })
   }, [])
+
+  const refreshWorkspaceSnapshot = useCallback(async () => {
+    if (!workspacePath || !window.pico?.workspace) {
+      setWorkspaceFiles({})
+      return
+    }
+
+    const fileList = await window.pico.workspace.listFiles(workspacePath)
+    const candidates = prioritizeWorkspaceFiles(fileList)
+    if (candidates.length === 0) {
+      setWorkspaceFiles({})
+      return
+    }
+
+    const readPairs = await Promise.all(
+      candidates.map(async (relativePath: string) => {
+        const content = await window.pico!.workspace.readFile({ rootPath: workspacePath, relativePath })
+        return [relativePath, content] as const
+      }),
+    )
+
+    const next: Record<string, string> = {}
+    for (const [relativePath, content] of readPairs) {
+      if (typeof content === 'string' && content.length > 0) next[relativePath] = content
+    }
+
+    setWorkspaceFiles(next)
+  }, [workspacePath])
+
+  useEffect(() => {
+    void refreshWorkspaceSnapshot()
+  }, [refreshWorkspaceSnapshot])
+
+  useEffect(() => {
+    if (!workspacePath || !window.pico?.workspace) return
+    if (!loading && !improving) return
+    const timer = window.setInterval(() => {
+      void refreshWorkspaceSnapshot()
+    }, 900)
+    return () => window.clearInterval(timer)
+  }, [workspacePath, loading, improving, refreshWorkspaceSnapshot])
+
+  useEffect(() => {
+    if (!workspacePath) return
+    void refreshWorkspaceSnapshot()
+  }, [workspacePath, events.length, refreshWorkspaceSnapshot])
+
+  const refreshWorkspaceFileList = useCallback(async () => {
+    if (!workspacePath || !window.pico?.workspace) {
+      setWorkspaceFileList([])
+      return
+    }
+    const list = await window.pico.workspace.listFiles(workspacePath)
+    setWorkspaceFileList(list)
+  }, [workspacePath])
+
+  useEffect(() => {
+    void refreshWorkspaceFileList()
+  }, [refreshWorkspaceFileList])
+
+  const handleWorkspaceFileClick = useCallback(
+    async (relativePath: string) => {
+      if (!workspacePath || !window.pico?.workspace) return
+      const content = await window.pico.workspace.readFile({ rootPath: workspacePath, relativePath })
+      if (typeof content === 'string') {
+        setWorkspaceFiles((prev) => ({ ...prev, [relativePath]: content }))
+        setSelectedWorkspaceFile(relativePath)
+      }
+    },
+    [workspacePath]
+  )
 
   const handleRun = async (genPrompt: string) => {
     if (!genPrompt.trim() || !hasRun) return
@@ -303,6 +377,8 @@ export function LayoutShell() {
     picoView,
   }
 
+  const outputFiles = Object.keys(workspaceFiles).length > 0 ? workspaceFiles : null
+
   return (
     <div className="h-dvh flex min-h-0 flex-col overflow-hidden bg-neutral-950 text-neutral-100">
       {showDiff && baselineCode && improvedCode && (
@@ -351,6 +427,35 @@ export function LayoutShell() {
             {workspacePath ?? 'No folder selected. Agent uses current app workspace.'}
           </p>
         </div>
+        {workspacePath && (
+          <div className="border-b border-neutral-800">
+            <p className="shrink-0 px-4 py-2 text-[11px] font-mono uppercase tracking-wide text-neutral-500">
+              Files
+            </p>
+            <div className="max-h-64 overflow-y-auto px-2 pb-4">
+              {workspaceFileList.length === 0 ? (
+                <p className="px-2 text-xs text-neutral-500">No files</p>
+              ) : (
+                <ul className="space-y-0.5">
+                  {workspaceFileList.map((file) => (
+                    <li key={file}>
+                      <button
+                        type="button"
+                        onClick={() => void handleWorkspaceFileClick(file)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono truncate block hover:bg-neutral-800 ${
+                          selectedWorkspaceFile === file ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400'
+                        }`}
+                        title={file}
+                      >
+                        {file}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
         {archetype && (
           <div className="p-4 border-b border-neutral-800">
             <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">Archetype</p>
@@ -445,12 +550,16 @@ export function LayoutShell() {
             events={uiState.agentLogs}
             status={uiState.agentStatus}
             previewUrl={uiState.agentPreviewUrl}
-            files={baselineCode ? { 'App.tsx': baselineCode } : {}}
+            files={outputFiles ?? (baselineCode ? { 'App.tsx': baselineCode } : {})}
             view={uiState.agentView}
             onViewChange={setAgentView}
             patchLines={baselinePatchLines}
             emptyCodeHint="Generate to see baseline code"
             emptyPreviewHint="Generate to see UI preview"
+            workspacePath={workspacePath}
+            terminalSide="baseline"
+            selectedFile={outputFiles ? selectedWorkspaceFile ?? undefined : undefined}
+            onFileChange={outputFiles ? setSelectedWorkspaceFile : undefined}
           />
           <div className="w-px shrink-0 bg-neutral-800" />
           <Column
@@ -460,12 +569,16 @@ export function LayoutShell() {
             events={uiState.picoLogs}
             status={uiState.picoStatus}
             previewUrl={uiState.picoPreviewUrl}
-            files={improvedCode ? { 'App.tsx': improvedCode } : {}}
+            files={outputFiles ?? (improvedCode ? { 'App.tsx': improvedCode } : {})}
             view={uiState.picoView}
             onViewChange={setPicoView}
             patchLines={improvedPatchLines}
             emptyCodeHint="Click Improve to see improved code"
             emptyPreviewHint="Click Improve to see UI preview"
+            workspacePath={workspacePath}
+            terminalSide="improved"
+            selectedFile={outputFiles ? selectedWorkspaceFile ?? undefined : undefined}
+            onFileChange={outputFiles ? setSelectedWorkspaceFile : undefined}
           />
           </div>
         </div>
@@ -516,16 +629,38 @@ export function LayoutShell() {
 function DesktopTitleBar() {
   return (
     <header
-      className="flex h-10 items-center border-b border-neutral-800 bg-neutral-950/95 px-3"
+      className="flex h-8 items-center border-b border-neutral-800 bg-neutral-950/95 px-2"
       style={{ ['WebkitAppRegion' as string]: 'drag' }}
     >
-      <div className="w-[76px]" />
+      <div className="w-[68px]" />
       <div className="flex-1 text-center">
-        <p className="text-xs font-semibold tracking-[0.18em] text-neutral-400">PICO DESKTOP</p>
+        <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">PICO DESKTOP</p>
       </div>
-      <div className="w-[76px]" />
+      <div className="w-[68px]" />
     </header>
   )
+}
+
+function prioritizeWorkspaceFiles(fileList: string[]): string[] {
+  const preferred = ['src/App.tsx', 'src/main.tsx', 'index.html']
+  const allowed = fileList.filter((file) => /\.(tsx?|jsx?|css|html|json|md)$/i.test(file))
+  const unique = new Set<string>()
+  const ordered: string[] = []
+
+  for (const pref of preferred) {
+    if (allowed.includes(pref)) {
+      unique.add(pref)
+      ordered.push(pref)
+    }
+  }
+
+  for (const file of allowed) {
+    if (unique.has(file)) continue
+    unique.add(file)
+    ordered.push(file)
+  }
+
+  return ordered.slice(0, 60)
 }
 
 function Column({
@@ -541,6 +676,10 @@ function Column({
   patchLines,
   emptyCodeHint = 'Output code will appear here',
   emptyPreviewHint = 'Output preview will appear here',
+  workspacePath,
+  terminalSide = 'baseline',
+  selectedFile: selectedFileProp,
+  onFileChange,
 }: {
   title: string
   subtitle: string
@@ -554,11 +693,19 @@ function Column({
   patchLines: Set<number>
   emptyCodeHint?: string
   emptyPreviewHint?: string
+  workspacePath?: string | null
+  terminalSide?: 'baseline' | 'improved'
+  selectedFile?: string
+  onFileChange?: (file: string) => void
 }) {
   const fileNames = Object.keys(files)
   const [activeFile, setActiveFile] = useState(fileNames[0] ?? '')
-  const selectedFile = fileNames.includes(activeFile) ? activeFile : (fileNames[0] ?? '')
+  const selectedFile = selectedFileProp ?? (fileNames.includes(activeFile) ? activeFile : (fileNames[0] ?? ''))
   const displayedCode = files[selectedFile] ?? code
+  const handleFileSelect = (file: string) => {
+    setActiveFile(file)
+    onFileChange?.(file)
+  }
   const isHTML = displayedCode.trim().startsWith('<!') || displayedCode.trim().startsWith('<html')
 
   return (
@@ -602,7 +749,7 @@ function Column({
               <div className="shrink-0 border-b border-neutral-800 px-3 py-2">
                 <select
                   value={selectedFile}
-                  onChange={(e) => setActiveFile(e.target.value)}
+                  onChange={(e) => handleFileSelect(e.target.value)}
                   className="max-w-xs rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs font-mono text-neutral-200 focus:border-blue-500 focus:outline-none"
                 >
                   {fileNames.map((file) => (
@@ -646,7 +793,7 @@ function Column({
           </div>
         )}
       </div>
-      <StreamAndTerminal events={events} />
+      <StreamAndTerminal events={events} workspacePath={workspacePath} terminalSide={terminalSide} />
     </div>
   )
 }

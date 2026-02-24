@@ -18,12 +18,15 @@ export interface PicoAPI {
   workspace: {
     pickFolder: () => Promise<string | null>
     getSelectedPath: () => Promise<string | null>
+    listFiles: (rootPath?: string | null) => Promise<string[]>
+    readFile: (params: { rootPath?: string | null; relativePath: string }) => Promise<string | null>
   }
   export: {
     toWorkspace: (files: Record<string, string>) => Promise<{ success: boolean; error?: string }>
   }
   preview: {
     refreshBaseline: (params: { runId: string; code: string; workspacePath?: string | null }) => Promise<void>
+    runCommand: (params: { command: string; cwd?: string | null; side?: 'baseline' | 'improved' }) => Promise<void>
     onTerminalOutput: (cb: (text: string) => void) => () => void
   }
   codex: {

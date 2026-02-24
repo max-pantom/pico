@@ -227,8 +227,16 @@ function createWindow(): void {
 
   win.once('ready-to-show', () => win.show())
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL)
+  const devUrl = isDev && process.env.VITE_DEV_SERVER_URL
+  win.webContents.once('did-fail-load', (_, code, desc, url) => {
+    if (code !== -3 && devUrl) {
+      console.error('[Electron] loadURL failed, trying dist:', code, desc)
+      win.loadFile(join(__dirname, '../dist/index.html'))
+    }
+  })
+
+  if (devUrl) {
+    win.loadURL(devUrl)
     win.webContents.openDevTools({ mode: 'detach' })
   } else {
     win.loadFile(join(__dirname, '../dist/index.html'))
