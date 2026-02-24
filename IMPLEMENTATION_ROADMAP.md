@@ -27,7 +27,22 @@ The Design Critic Engine evaluates AI-generated UI against design laws and feeds
 
 ## Phase 2: Electron Desktop App + Auth + Codex
 
-**Status:** Auth + Compare view implemented. Pivot UI: Raw | Pico Improved side-by-side.
+**Status:** Auth + LayoutShell implemented. New architecture: EventBus, streaming Codex + Pico, two-column compare.
+
+### New Architecture (Phase 2.5)
+
+**Dataflow:** User prompt → Run Config Builder → Codex (baseline) + Pico (critic → director → rewriter) → Compare Layer
+
+**Electron Main:**
+- `eventBus.ts` — In-memory pubsub keyed by runId, forwards to renderer via IPC
+- `run.ts` — run.start, run.cancel, wires Codex + Pico
+- `codexStreaming.ts` — Spawns codex exec, streams stdout, extracts code from output
+- `picoStreaming.ts` — Critic → Director → Rewriter with callLLMNode (Ollama/OpenAI)
+- `llmNode.ts` — Node LLM client (Ollama localhost, OpenAI API key)
+
+**Stream Event Schema:** `{ runId, ts, source, kind, stage, message?, meta? }` — source: codex|pico|system, kind: status|thought|tool|code|diff|preview|error
+
+**Renderer:** `LayoutShell.tsx` — Sidebar (run controls, scores) + Codex column (Code/Stream tabs) + Pico column (Code/Stream tabs)
 
 ### 2.1 Auth Module
 

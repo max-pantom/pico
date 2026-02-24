@@ -1,17 +1,146 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import 'dotenv/config'
+import { app, BrowserWindow, Menu, ipcMain, type MenuItemConstructorOptions } from 'electron'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
+import Store from 'electron-store'
 import { registerAuthHandlers } from './auth'
 import { registerWorkspaceHandlers } from './workspace'
 import { registerCodexHandlers } from './codex'
+import { registerRunHandlers } from './run'
 
 const isDev = process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL
+const isMac = process.platform === 'darwin'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+interface WindowBounds {
+  width: number
+  height: number
+  x?: number
+  y?: number
+  isMaximized: boolean
+}
+
+interface MainStore {
+  windowBounds: WindowBounds
+}
+
+const mainStore = new Store<MainStore>({
+  name: 'main-preferences',
+  defaults: {
+    windowBounds: {
+      width: 1400,
+      height: 900,
+      isMaximized: false,
+    },
+  },
+})
+
+function getMainWindow(): BrowserWindow | null {
+  return BrowserWindow.getAllWindows()[0] ?? null
+}
+
+function notifyRendererMenuAction(action: string): void {
+  getMainWindow()?.webContents.send('menu:action', action)
+}
+
+function buildAppMenu(): Menu {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: 'Pico',
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        {
+          label: 'Preferences',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => notifyRendererMenuAction('preferences'),
+        },
+        { type: 'separator' },
+        { role: 'services' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Pick Output Folder',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => notifyRendererMenuAction('pick-output-folder'),
+        },
+        {
+          label: 'Export Output',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => notifyRendererMenuAction('export'),
+        },
+      ],
+    },
+    {
+      label: 'Run',
+      submenu: [
+        {
+          label: 'Generate',
+          accelerator: 'CmdOrCtrl+Enter',
+          click: () => notifyRendererMenuAction('generate'),
+        },
+        {
+          label: 'Improve',
+          accelerator: 'CmdOrCtrl+Shift+Enter',
+          click: () => notifyRendererMenuAction('improve'),
+        },
+        {
+          label: 'Cancel Run',
+          accelerator: 'CmdOrCtrl+.',
+          click: () => notifyRendererMenuAction('cancel'),
+        },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
+    },
+  ]
+
+  return Menu.buildFromTemplate(template)
+}
+
+function persistWindowBounds(win: BrowserWindow): void {
+  if (win.isDestroyed()) return
+  const bounds = win.getBounds()
+  mainStore.set('windowBounds', {
+    width: Math.max(900, bounds.width),
+    height: Math.max(600, bounds.height),
+    x: bounds.x,
+    y: bounds.y,
+    isMaximized: win.isMaximized(),
+  })
+}
+
 function createWindow(): void {
+  const persisted = mainStore.get('windowBounds')
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: persisted.width,
+    height: persisted.height,
+    x: persisted.x,
+    y: persisted.y,
     minWidth: 900,
     minHeight: 600,
     webPreferences: {
@@ -19,9 +148,20 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'hidden',
+    trafficLightPosition: isMac ? { x: 14, y: 12 } : undefined,
     show: false,
   })
+
+  if (persisted.isMaximized) {
+    win.maximize()
+  }
+
+  win.on('resize', () => persistWindowBounds(win))
+  win.on('move', () => persistWindowBounds(win))
+  win.on('close', () => persistWindowBounds(win))
+  win.on('maximize', () => persistWindowBounds(win))
+  win.on('unmaximize', () => persistWindowBounds(win))
 
   win.once('ready-to-show', () => win.show())
 
@@ -34,9 +174,11 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(buildAppMenu())
   registerAuthHandlers(ipcMain)
   registerWorkspaceHandlers(ipcMain)
   registerCodexHandlers(ipcMain)
+  registerRunHandlers(ipcMain)
   createWindow()
 
   app.on('activate', () => {

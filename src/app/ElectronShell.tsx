@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AuthGate } from './AuthGate'
-import { CompareView } from './CompareView'
+import { LayoutShell } from './LayoutShell'
 
 export function ElectronShell() {
     const [authState, setAuthState] = useState<{ status: string; mode?: string } | null>(null)
@@ -32,5 +32,5 @@ export function ElectronShell() {
         )
     }
 
-    return <CompareView />
+    return <LayoutShell />
 }

@@ -1,0 +1,683 @@
+/**
+ * LayoutShell - Sidebar + dual columns (Codex | Pico)
+ * Top: Output tabs (Preview | Code | Files)
+ * Bottom: Stream console
+ */
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import type { StreamEvent } from '../types/stream'
+import { StreamConsole } from './StreamConsole'
+import { DiffView } from './DiffView'
+import { ChatPanel, parseMention, type ChatMessage } from './ChatPanel'
+import { diffLines } from 'diff'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+const hasRun = typeof window !== 'undefined' && window.pico?.run
+const isDesktop = typeof window !== 'undefined' && !!window.pico
+
+type LogEntry = StreamEvent
+
+interface PicoState {
+  agentStatus: 'idle' | 'running' | 'done'
+  picoStatus: 'idle' | 'reviewing' | 'done'
+  agentPreviewUrl: string
+  picoPreviewUrl: string
+  agentLogs: LogEntry[]
+  picoLogs: LogEntry[]
+  agentView: 'ui' | 'code'
+  picoView: 'ui' | 'code'
+}
+
+export function LayoutShell() {
+  const menuHandlersRef = useRef<{
+    run: () => Promise<void>
+    improve: () => Promise<void>
+    cancel: () => void
+    pickFolder: () => Promise<void>
+    exportCode: () => Promise<void>
+    openPreferences: () => void
+  } | null>(null)
+
+  const [prompt, setPrompt] = useState('')
+  const [runId, setRunId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [improving, setImproving] = useState(false)
+  const [error, setError] = useState('')
+  const [events, setEvents] = useState<StreamEvent[]>([])
+  const [baselineCode, setBaselineCode] = useState('')
+  const [improvedCode, setImprovedCode] = useState('')
+  const [critic, setCritic] = useState<{ score?: Record<string, number>; verdict?: string } | null>(null)
+  const [archetype, setArchetype] = useState<string | null>(null)
+  const [showDiff, setShowDiff] = useState(false)
+  const [exportStatus, setExportStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [agentView, setAgentView] = useState<'ui' | 'code'>('ui')
+  const [picoView, setPicoView] = useState<'ui' | 'code'>('ui')
+  const [workspacePath, setWorkspacePath] = useState<string | null>(null)
+  const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [originalPrompt, setOriginalPrompt] = useState('')
+  const agentMessageAddedRef = useRef<string | null>(null)
+  const streamFilter = new Set(['status', 'tool', 'code', 'error', 'preview'])
+
+  const [baselinePort, setBaselinePort] = useState<number | null>(null)
+  const [improvedPort, setImprovedPort] = useState<number | null>(null)
+
+  const handleAddEvent = useCallback((e: { runId: string; ts: number; source: string; kind: string; stage: string; message?: string; meta?: Record<string, unknown> }) => {
+    setEvents((prev) => [...prev.slice(-199), e as StreamEvent])
+    if (e.kind === 'status' && e.meta?.baselineCode) {
+      setBaselineCode(String(e.meta.baselineCode))
+      if (!e.meta?.improvedCode && agentMessageAddedRef.current !== e.runId) {
+        agentMessageAddedRef.current = e.runId
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'agent', content: 'Generated baseline.', ts: Date.now() }])
+      }
+    }
+    if (e.kind === 'status' && e.meta?.improvedCode) {
+      setImprovedCode(String(e.meta.improvedCode))
+      setCritic((e.meta.critic2 ?? e.meta.critic1) as { score?: Record<string, number>; verdict?: string })
+      if (e.meta.archetype) setArchetype(String(e.meta.archetype))
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'pico', content: 'Applied design improvements.', ts: Date.now() }])
+    }
+    if (e.kind === 'preview' && e.meta?.port != null) {
+      const side = e.meta.side as string
+      if (side === 'baseline') setBaselinePort(Number(e.meta.port))
+      if (side === 'improved') setImprovedPort(Number(e.meta.port))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasRun) return
+    const unsub = window.pico!.run.onEvent(handleAddEvent)
+    return unsub
+  }, [handleAddEvent])
+
+  useEffect(() => {
+    if (!window.pico?.workspace) return
+    window.pico.workspace.getSelectedPath().then((path) => {
+      setWorkspacePath(path)
+    })
+  }, [])
+
+  const handleRun = async (genPrompt: string) => {
+    if (!genPrompt.trim() || !hasRun) return
+    if (runId && window.pico?.run) {
+      await window.pico.run.cancel(runId)
+    }
+    setError('')
+    setLoading(true)
+    setEvents([])
+    setBaselineCode('')
+    setImprovedCode('')
+    setCritic(null)
+    setBaselinePort(null)
+    setImprovedPort(null)
+    setArchetype(null)
+    agentMessageAddedRef.current = null
+    setOriginalPrompt(genPrompt)
+    try {
+      const { runId: id } = await window.pico!.run.start({
+        prompt: genPrompt,
+        directionCount: 1,
+        workspacePath: workspacePath ?? undefined,
+      })
+      setRunId(id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to start run')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePickFolder = async () => {
+    if (!window.pico?.workspace) return
+    setWorkspaceLoading(true)
+    try {
+      const path = await window.pico.workspace.pickFolder()
+      if (path) setWorkspacePath(path)
+    } finally {
+      setWorkspaceLoading(false)
+    }
+  }
+
+  const handleImprove = async () => {
+    if (!baselineCode || !originalPrompt.trim() || !runId || !hasRun) return
+    setError('')
+    setImproving(true)
+    setImprovedCode('')
+    setCritic(null)
+    setImprovedPort(null)
+    setArchetype(null)
+    try {
+      const result = await window.pico!.run.improve({
+        runId,
+        baselineCode,
+        prompt: originalPrompt,
+      })
+      if (!result.success) setError(result.error ?? 'Improve failed')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Improve failed')
+    } finally {
+      setImproving(false)
+    }
+  }
+
+  const handleCancel = useCallback(() => {
+    if (runId && window.pico?.run) {
+      window.pico.run.cancel(runId)
+      setRunId(null)
+    }
+  }, [runId])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (runId && (loading || improving)) {
+          e.preventDefault()
+          handleCancel()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [runId, loading, improving, handleCancel])
+
+  const handleApplyPicoFixes = () => {
+    if (improvedCode) {
+      setBaselineCode(improvedCode)
+      setImprovedCode('')
+      setCritic(null)
+      setBaselinePort(null)
+      setImprovedPort(null)
+    }
+  }
+
+  const handleExport = async () => {
+    const codeToExport = improvedCode || baselineCode
+    if (!codeToExport || !window.pico?.export) return
+    setExportStatus('idle')
+    const result = await window.pico.export.toWorkspace({ 'App.tsx': codeToExport })
+    setExportStatus(result.success ? 'success' : 'error')
+    if (result.error) setError(result.error)
+    setTimeout(() => setExportStatus('idle'), 2000)
+  }
+
+  const handleSend = useCallback(
+    (raw: string) => {
+      const { target, body } = parseMention(raw)
+      const userContent = target ? `@${target} ${body}` : raw
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: userContent, ts: Date.now() }])
+
+      if (target === 'pico') {
+        if (baselineCode && runId && originalPrompt.trim()) void handleImprove()
+        return
+      }
+      if (target === 'agent' || !target) {
+        const genPrompt = body || raw
+        if (genPrompt.trim()) void handleRun(genPrompt)
+      }
+    },
+    [baselineCode, runId, originalPrompt, handleImprove, handleRun]
+  )
+
+  menuHandlersRef.current = {
+    run: () => (prompt.trim() ? handleRun(prompt) : Promise.resolve()),
+    improve: () => handleImprove(),
+    cancel: handleCancel,
+    pickFolder: handlePickFolder,
+    exportCode: handleExport,
+    openPreferences: () => setLeftSidebarOpen(true),
+  }
+
+  useEffect(() => {
+    if (!window.pico?.menu) return
+    return window.pico.menu.onAction((action) => {
+      const handlers = menuHandlersRef.current
+      if (!handlers) return
+
+      if (action === 'generate') {
+        void handlers.run()
+        return
+      }
+      if (action === 'improve') {
+        void handlers.improve()
+        return
+      }
+      if (action === 'cancel') {
+        handlers.cancel()
+        return
+      }
+      if (action === 'pick-output-folder') {
+        void handlers.pickFolder()
+        return
+      }
+      if (action === 'export') {
+        void handlers.exportCode()
+        return
+      }
+      if (action === 'preferences') {
+        handlers.openPreferences()
+      }
+    })
+  }, [])
+
+  const handleNewDirection = () => {
+    if (prompt.trim() && hasRun) {
+      setBaselineCode('')
+      setImprovedCode('')
+      setCritic(null)
+      setBaselinePort(null)
+      setImprovedPort(null)
+      setArchetype(null)
+      handleRun(prompt)
+    }
+  }
+
+  const filteredEvents = events.filter((e: StreamEvent) => streamFilter.has(e.kind))
+  const codexEvents = filteredEvents.filter((e) => e.source === 'codex' || e.source === 'system')
+  const picoEvents = filteredEvents.filter((e) => e.source === 'pico' || e.source === 'system')
+  const baselinePreviewUrl = baselinePort ? `http://localhost:${baselinePort}` : ''
+  const improvedPreviewUrl = improvedPort ? `http://localhost:${improvedPort}` : ''
+  const baselinePatchLines = useMemo(
+    () => getChangedLineNumbers(baselineCode, improvedCode, 'source'),
+    [baselineCode, improvedCode],
+  )
+  const improvedPatchLines = useMemo(
+    () => getChangedLineNumbers(baselineCode, improvedCode, 'target'),
+    [baselineCode, improvedCode],
+  )
+
+  const uiState: PicoState = {
+    agentStatus: loading ? 'running' : baselineCode ? 'done' : 'idle',
+    picoStatus: improving ? 'reviewing' : improvedCode ? 'done' : 'idle',
+    agentPreviewUrl: baselinePreviewUrl,
+    picoPreviewUrl: improvedPreviewUrl,
+    agentLogs: codexEvents,
+    picoLogs: picoEvents,
+    agentView,
+    picoView,
+  }
+
+  return (
+    <div className="h-dvh flex min-h-0 flex-col overflow-hidden bg-neutral-950 text-neutral-100">
+      {showDiff && baselineCode && improvedCode && (
+        <DiffView
+          baseline={baselineCode}
+          improved={improvedCode}
+          filename="App.tsx"
+          onClose={() => setShowDiff(false)}
+        />
+      )}
+      {isDesktop && <DesktopTitleBar />}
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+      {/* Left sidebar */}
+      {leftSidebarOpen ? (
+        <aside className="w-[280px] shrink-0 border-r border-neutral-800 bg-neutral-950/70 flex flex-col min-h-0 overflow-y-auto">
+          <div className="shrink-0 flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+            <h1 className="text-sm font-semibold tracking-wide text-neutral-200">Pico</h1>
+            <button
+              onClick={() => setLeftSidebarOpen(false)}
+              className="rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300"
+              title="Close sidebar"
+            >
+              <span aria-hidden>‹</span>
+            </button>
+          </div>
+        <div className="p-4 border-b border-neutral-800 space-y-2">
+          <button
+            onClick={() => void handleImprove()}
+            disabled={!baselineCode || improving || loading}
+            className="w-full rounded-lg border border-emerald-600 bg-emerald-950/50 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {improving ? 'Reviewing…' : 'Improve'}
+          </button>
+        </div>
+        <div className="p-4 border-b border-neutral-800 space-y-2">
+          <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">Workspace</p>
+          <button
+            onClick={handlePickFolder}
+            disabled={workspaceLoading}
+            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {workspaceLoading ? 'Picking folder...' : 'Pick output folder'}
+          </button>
+          <p className="break-all text-[11px] text-neutral-500">
+            {workspacePath ?? 'No folder selected. Agent uses current app workspace.'}
+          </p>
+        </div>
+        {archetype && (
+          <div className="p-4 border-b border-neutral-800">
+            <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">Archetype</p>
+            <span className="mt-1 inline-block rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300">
+              {archetype}
+            </span>
+          </div>
+        )}
+        <div className="p-4 border-b border-neutral-800">
+          <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">Actions</p>
+          <div className="mt-2 space-y-1 text-xs text-neutral-400">
+            <button
+              onClick={handleNewDirection}
+              className="w-full text-left px-2 py-1 rounded hover:bg-neutral-800 hover:text-neutral-200"
+            >
+              New directions
+            </button>
+            <button
+              onClick={handleApplyPicoFixes}
+              disabled={!improvedCode}
+              className="w-full text-left px-2 py-1 rounded hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Apply Pico fixes
+            </button>
+            <button
+              onClick={() => setShowDiff(true)}
+              disabled={!baselineCode || !improvedCode}
+              className="w-full text-left px-2 py-1 rounded hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Diff view
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={!baselineCode && !improvedCode}
+              className="w-full text-left px-2 py-1 rounded hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exportStatus === 'success' ? 'Exported!' : exportStatus === 'error' ? 'Export failed' : 'Export'}
+            </button>
+          </div>
+        </div>
+        {critic?.score && (
+          <div className="p-4 border-b border-neutral-800">
+            <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">Scores</p>
+            <div className="mt-2 space-y-2">
+              {Object.entries(critic.score).map(([key, val]) => (
+                <div key={key} className="flex justify-between items-center gap-2">
+                  <span className="text-neutral-500 text-xs capitalize shrink-0">{key.replace(/_/g, ' ')}</span>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-16 h-1 bg-neutral-700 rounded-full shrink-0">
+                      <div
+                        className="h-full bg-emerald-400 rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(0, val))}%` }}
+                      />
+                    </div>
+                    <span className="text-xs shrink-0 w-6">{val}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        </aside>
+      ) : (
+        <button
+          onClick={() => setLeftSidebarOpen(true)}
+          className="shrink-0 w-9 border-r border-neutral-800 bg-neutral-950/70 flex items-center justify-center text-neutral-500 hover:bg-neutral-900 hover:text-neutral-300"
+          title="Open sidebar"
+        >
+          <span aria-hidden>›</span>
+        </button>
+      )}
+
+      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden flex-col">
+        {error && (
+          <div className="absolute top-4 left-[300px] right-4 z-10 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <Column
+            title="Agent"
+            subtitle="Baseline output"
+            code={baselineCode}
+            events={uiState.agentLogs}
+            status={uiState.agentStatus}
+            previewUrl={uiState.agentPreviewUrl}
+            files={baselineCode ? { 'App.tsx': baselineCode } : {}}
+            view={uiState.agentView}
+            onViewChange={setAgentView}
+            patchLines={baselinePatchLines}
+          />
+          <div className="w-px shrink-0 bg-neutral-800" />
+          <Column
+            title="Pico"
+            subtitle="Design opinions applied"
+            code={improvedCode}
+            events={uiState.picoLogs}
+            status={uiState.picoStatus}
+            previewUrl={uiState.picoPreviewUrl}
+            files={improvedCode ? { 'App.tsx': improvedCode } : {}}
+            view={uiState.picoView}
+            onViewChange={setPicoView}
+            patchLines={improvedPatchLines}
+          />
+        </div>
+      </div>
+
+      {/* Right sidebar - Chat */}
+      {rightSidebarOpen ? (
+        <aside className="w-[280px] shrink-0 border-l border-neutral-800 bg-neutral-950/70 flex flex-col min-h-0 overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+            <p className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">Chat</p>
+            <button
+              onClick={() => setRightSidebarOpen(false)}
+              className="rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300"
+              title="Close sidebar"
+            >
+              <span aria-hidden>›</span>
+            </button>
+          </div>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <ChatPanel
+              hasRun={!!hasRun}
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              onSend={handleSend}
+              onCancel={handleCancel}
+              loading={loading}
+              improving={improving}
+              runId={runId}
+              messages={messages}
+            />
+          </div>
+        </aside>
+      ) : (
+        <button
+          onClick={() => setRightSidebarOpen(true)}
+          className="shrink-0 w-9 border-l border-neutral-800 bg-neutral-950/70 flex items-center justify-center text-neutral-500 hover:bg-neutral-900 hover:text-neutral-300"
+          title="Open prompt panel"
+        >
+          <span aria-hidden>‹</span>
+        </button>
+      )}
+
+      </div>
+    </div>
+  )
+}
+
+function DesktopTitleBar() {
+  return (
+    <header
+      className="flex h-10 items-center border-b border-neutral-800 bg-neutral-950/95 px-3"
+      style={{ ['WebkitAppRegion' as string]: 'drag' }}
+    >
+      <div className="w-[76px]" />
+      <div className="flex-1 text-center">
+        <p className="text-xs font-semibold tracking-[0.18em] text-neutral-400">PICO DESKTOP</p>
+      </div>
+      <div className="w-[76px]" />
+    </header>
+  )
+}
+
+function Column({
+  title,
+  subtitle,
+  code,
+  events,
+  status,
+  previewUrl,
+  files,
+  view,
+  onViewChange,
+  patchLines,
+}: {
+  title: string
+  subtitle: string
+  code: string
+  events: StreamEvent[]
+  status: 'idle' | 'running' | 'reviewing' | 'done'
+  previewUrl: string
+  files: Record<string, string>
+  view: 'ui' | 'code'
+  onViewChange: (view: 'ui' | 'code') => void
+  patchLines: Set<number>
+}) {
+  const fileNames = Object.keys(files)
+  const [activeFile, setActiveFile] = useState(fileNames[0] ?? '')
+  const selectedFile = fileNames.includes(activeFile) ? activeFile : (fileNames[0] ?? '')
+  const displayedCode = files[selectedFile] ?? code
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-neutral-950">
+      <div className="shrink-0 flex min-h-14 items-center justify-between border-b border-neutral-800 px-4 py-2">
+        <div>
+          <p className="text-sm font-medium tracking-wide text-neutral-200">{title}</p>
+          <p className="text-xs text-neutral-500">{subtitle}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-neutral-700 bg-neutral-900 p-1">
+            <ViewButton active={view === 'ui'} onClick={() => onViewChange('ui')}>
+              UI
+            </ViewButton>
+            <ViewButton active={view === 'code'} onClick={() => onViewChange('code')}>
+              Code
+            </ViewButton>
+          </div>
+          <StatusBadge status={status} />
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {view === 'ui' && (
+          <div className="flex-1 min-h-0">
+            {previewUrl ? (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title={`${title} preview`}
+              />
+            ) : (
+              <div className="flex h-full min-h-[200px] items-center justify-center text-neutral-600 text-sm">
+                {code ? 'Preview starting...' : 'Run a prompt to see output'}
+              </div>
+            )}
+          </div>
+        )}
+        {view === 'code' && (
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-neutral-950">
+            {fileNames.length > 1 && (
+              <div className="shrink-0 border-b border-neutral-800 px-3 py-2">
+                <select
+                  value={selectedFile}
+                  onChange={(e) => setActiveFile(e.target.value)}
+                  className="max-w-xs rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs font-mono text-neutral-200 focus:border-blue-500 focus:outline-none"
+                >
+                  {fileNames.map((file) => (
+                    <option key={file} value={file}>
+                      {file}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {displayedCode ? (
+              <div className="flex-1 overflow-auto p-3">
+                <div className="rounded-lg border border-neutral-800 overflow-hidden">
+                  <SyntaxHighlighter
+                    language="tsx"
+                    style={oneDark}
+                    showLineNumbers
+                    customStyle={{
+                      margin: 0,
+                      fontSize: '12px',
+                      background: '#121214',
+                      minHeight: '100%',
+                    }}
+                    lineProps={(lineNumber: number) => ({
+                      style: {
+                        display: 'block',
+                        width: '100%',
+                        background: patchLines.has(lineNumber) ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                      },
+                    })}
+                  >
+                    {displayedCode}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full min-h-[200px] items-center justify-center text-neutral-600 text-sm">
+                Run a prompt to see output
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <StreamConsole events={events} />
+    </div>
+  )
+}
+
+function ViewButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`min-w-11 px-2 py-1 rounded text-xs font-semibold tracking-wide transition-colors ${
+        active ? 'bg-neutral-700 text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function StatusBadge({ status }: { status: 'idle' | 'running' | 'reviewing' | 'done' }) {
+  if (status === 'idle') return null
+
+  const style =
+    status === 'done'
+      ? 'text-emerald-300 bg-emerald-950/40 border-emerald-800/50'
+      : 'text-amber-300 bg-amber-950/40 border-amber-800/50'
+  return <span className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style}`}>{status}</span>
+}
+
+function getChangedLineNumbers(sourceCode: string, targetCode: string, focus: 'source' | 'target'): Set<number> {
+  if (!sourceCode || !targetCode) return new Set<number>()
+  const parts = diffLines(sourceCode, targetCode)
+  const changed = new Set<number>()
+  let sourceLine = 1
+  let targetLine = 1
+
+  for (const part of parts) {
+    const count = part.value.split('\n').length - (part.value.endsWith('\n') ? 1 : 0)
+    if (part.added) {
+      if (focus === 'target') {
+        for (let i = 0; i < count; i += 1) changed.add(targetLine + i)
+      }
+      targetLine += count
+      continue
+    }
+    if (part.removed) {
+      if (focus === 'source') {
+        for (let i = 0; i < count; i += 1) changed.add(sourceLine + i)
+      }
+      sourceLine += count
+      continue
+    }
+    sourceLine += count
+    targetLine += count
+  }
+
+  return changed
+}
