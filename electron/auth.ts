@@ -3,8 +3,9 @@
  * Based on OpenAI Codex device auth flow.
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import { getAuth, setAuthChatGPT, setAuthApiKey, clearAuth } from './secureStore'
+import { safeSend } from './safeSend'
 
 const API_BASE = 'https://auth.openai.com/api/accounts'
 const BASE_URL = 'https://auth.openai.com'
@@ -32,10 +33,7 @@ function getAuthState(): AuthState {
 }
 
 function notifyStateChange(): void {
-  const win = BrowserWindow.getAllWindows()[0] ?? null
-  if (win && !win.isDestroyed()) {
-    win.webContents.send('auth:stateChanged', getAuthState())
-  }
+  safeSend('auth:stateChanged', getAuthState())
 }
 
 async function requestDeviceCode(): Promise<{
@@ -131,7 +129,6 @@ export function registerAuthHandlers(ipc: typeof ipcMain): void {
   ipc.handle('auth:getState', () => getAuthState())
 
   ipc.handle('auth:signInWithChatGPT', async () => {
-    const win = BrowserWindow.getAllWindows()[0] ?? null
     clearAuth()
 
     const codeResp = await requestDeviceCode()
@@ -140,7 +137,7 @@ export function registerAuthHandlers(ipc: typeof ipcMain): void {
     }
 
     const verificationUrl = `${BASE_URL}/codex/device`
-    win?.webContents.send('auth:deviceCode', {
+    safeSend('auth:deviceCode', {
       userCode: codeResp.user_code,
       verificationUrl,
     })

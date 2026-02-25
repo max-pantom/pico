@@ -10,8 +10,7 @@ import { StreamAndTerminal } from './StreamAndTerminal.tsx'
 import { DiffView } from './DiffView.tsx'
 import { ChatPanel, parseMention, type ChatMessage } from './ChatPanel.tsx'
 import { diffLines } from 'diff'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { CodeDisplay } from './CodeDisplay.tsx'
 
 const hasRun = typeof window !== 'undefined' && window.pico?.run
 const isDesktop = typeof window !== 'undefined' && !!window.pico
@@ -47,6 +46,7 @@ export function LayoutShell() {
   const [events, setEvents] = useState<StreamEvent[]>([])
   const [baselineCode, setBaselineCode] = useState('')
   const [improvedCode, setImprovedCode] = useState('')
+  const [picoInstruction, setPicoInstruction] = useState('')
   const [critic, setCritic] = useState<{ score?: Record<string, number>; verdict?: string } | null>(null)
   const [archetype, setArchetype] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
@@ -68,6 +68,24 @@ export function LayoutShell() {
   const [baselinePort, setBaselinePort] = useState<number | null>(null)
   const [improvedPort, setImprovedPort] = useState<number | null>(null)
 
+  const [displayedBaselineCode, setDisplayedBaselineCode] = useState('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (loading) {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => setDisplayedBaselineCode(baselineCode), 400)
+      return () => {
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+      }
+    }
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
+    setDisplayedBaselineCode(baselineCode)
+  }, [baselineCode, loading])
+  const effectiveBaselineCode = loading ? displayedBaselineCode : baselineCode
+
   const handleAddEvent = useCallback((e: { runId: string; ts: number; source: string; kind: string; stage: string; message?: string; meta?: Record<string, unknown> }) => {
     setEvents((prev) => [...prev.slice(-199), e as StreamEvent])
     if ((e.kind === 'status' || e.kind === 'tool') && e.meta?.baselineCode) {
@@ -82,6 +100,9 @@ export function LayoutShell() {
       setCritic((e.meta.critic2 ?? e.meta.critic1) as { score?: Record<string, number>; verdict?: string })
       if (e.meta.archetype) setArchetype(String(e.meta.archetype))
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'pico', content: 'Applied design improvements.', ts: Date.now() }])
+    }
+    if (e.kind === 'code' && e.source === 'pico' && typeof e.meta?.codexInstruction === 'string') {
+      setPicoInstruction(e.meta.codexInstruction)
     }
     if (e.kind === 'preview' && e.meta?.port != null) {
       const side = e.meta.side as string
@@ -140,14 +161,9 @@ export function LayoutShell() {
     if (!loading && !improving) return
     const timer = window.setInterval(() => {
       void refreshWorkspaceSnapshot()
-    }, 900)
+    }, 1200)
     return () => window.clearInterval(timer)
   }, [workspacePath, loading, improving, refreshWorkspaceSnapshot])
-
-  useEffect(() => {
-    if (!workspacePath) return
-    void refreshWorkspaceSnapshot()
-  }, [workspacePath, events.length, refreshWorkspaceSnapshot])
 
   const refreshWorkspaceFileList = useCallback(async () => {
     if (!workspacePath || !window.pico?.workspace) {
@@ -184,6 +200,7 @@ export function LayoutShell() {
     setEvents([])
     setBaselineCode('')
     setImprovedCode('')
+    setPicoInstruction('')
     setCritic(null)
     setBaselinePort(null)
     setImprovedPort(null)
@@ -220,6 +237,7 @@ export function LayoutShell() {
     setError('')
     setImproving(true)
     setImprovedCode('')
+    setPicoInstruction('')
     setCritic(null)
     setImprovedPort(null)
     setArchetype(null)
@@ -262,6 +280,7 @@ export function LayoutShell() {
       const codeToApply = improvedCode
       setBaselineCode(codeToApply)
       setImprovedCode('')
+      setPicoInstruction('')
       setCritic(null)
       setBaselinePort(null)
       setImprovedPort(null)
@@ -344,6 +363,7 @@ export function LayoutShell() {
     if (prompt.trim() && hasRun) {
       setBaselineCode('')
       setImprovedCode('')
+      setPicoInstruction('')
       setCritic(null)
       setBaselinePort(null)
       setImprovedPort(null)
@@ -366,6 +386,10 @@ export function LayoutShell() {
     [baselineCode, improvedCode],
   )
 
+  const outputFiles = Object.keys(workspaceFiles).length > 0 ? workspaceFiles : null
+  const agentFiles = outputFiles ?? (effectiveBaselineCode ? { 'App.tsx': effectiveBaselineCode } : {})
+  const picoFiles = outputFiles ?? (improvedCode ? { 'App.tsx': improvedCode } : picoInstruction ? { 'PICO_INSTRUCTIONS.md': picoInstruction } : {})
+
   const uiState: PicoState = {
     agentStatus: loading ? 'running' : baselineCode ? 'done' : 'idle',
     picoStatus: improving ? 'reviewing' : improvedCode ? 'done' : 'idle',
@@ -376,8 +400,6 @@ export function LayoutShell() {
     agentView,
     picoView,
   }
-
-  const outputFiles = Object.keys(workspaceFiles).length > 0 ? workspaceFiles : null
 
   return (
     <div className="h-dvh flex min-h-0 flex-col overflow-hidden bg-neutral-950 text-neutral-100">
@@ -546,11 +568,11 @@ export function LayoutShell() {
           <Column
             title="Agent"
             subtitle="Baseline output"
-            code={baselineCode}
+            code={effectiveBaselineCode}
             events={uiState.agentLogs}
             status={uiState.agentStatus}
             previewUrl={uiState.agentPreviewUrl}
-            files={outputFiles ?? (baselineCode ? { 'App.tsx': baselineCode } : {})}
+            files={agentFiles}
             view={uiState.agentView}
             onViewChange={setAgentView}
             patchLines={baselinePatchLines}
@@ -569,7 +591,7 @@ export function LayoutShell() {
             events={uiState.picoLogs}
             status={uiState.picoStatus}
             previewUrl={uiState.picoPreviewUrl}
-            files={outputFiles ?? (improvedCode ? { 'App.tsx': improvedCode } : {})}
+            files={picoFiles}
             view={uiState.picoView}
             onViewChange={setPicoView}
             patchLines={improvedPatchLines}
@@ -700,6 +722,7 @@ function Column({
 }) {
   const fileNames = Object.keys(files)
   const [activeFile, setActiveFile] = useState(fileNames[0] ?? '')
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
   const selectedFile = selectedFileProp ?? (fileNames.includes(activeFile) ? activeFile : (fileNames[0] ?? ''))
   const displayedCode = files[selectedFile] ?? code
   const handleFileSelect = (file: string) => {
@@ -717,6 +740,14 @@ function Column({
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg border border-neutral-700 bg-neutral-900 p-1">
+            <ViewButton active={previewMode === 'desktop'} onClick={() => setPreviewMode('desktop')}>
+              Desktop
+            </ViewButton>
+            <ViewButton active={previewMode === 'mobile'} onClick={() => setPreviewMode('mobile')}>
+              Mobile
+            </ViewButton>
+          </div>
+          <div className="inline-flex rounded-lg border border-neutral-700 bg-neutral-900 p-1">
             <ViewButton active={view === 'ui'} onClick={() => onViewChange('ui')}>
               UI
             </ViewButton>
@@ -731,11 +762,7 @@ function Column({
         {view === 'ui' && (
           <div className="flex-1 min-h-0">
             {previewUrl ? (
-              <iframe
-                src={previewUrl}
-                className="w-full h-full border-0"
-                title={`${title} preview`}
-              />
+              <PreviewViewport url={previewUrl} mode={previewMode} title={`${title} preview`} />
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center text-neutral-600 text-sm">
                 {code ? 'Preview starting...' : emptyPreviewHint}
@@ -763,26 +790,11 @@ function Column({
             {displayedCode ? (
               <div className="flex-1 overflow-auto p-3">
                 <div className="rounded-lg border border-neutral-800 overflow-hidden">
-                  <SyntaxHighlighter
+                  <CodeDisplay
+                    code={displayedCode}
                     language={isHTML ? 'html' : 'tsx'}
-                    style={oneDark}
-                    showLineNumbers
-                    customStyle={{
-                      margin: 0,
-                      fontSize: '12px',
-                      background: '#121214',
-                      minHeight: '100%',
-                    }}
-                    lineProps={(lineNumber: number) => ({
-                      style: {
-                        display: 'block',
-                        width: '100%',
-                        background: patchLines.has(lineNumber) ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                      },
-                    })}
-                  >
-                    {displayedCode}
-                  </SyntaxHighlighter>
+                    patchLines={patchLines}
+                  />
                 </div>
               </div>
             ) : (
@@ -794,6 +806,56 @@ function Column({
         )}
       </div>
       <StreamAndTerminal events={events} workspacePath={workspacePath} terminalSide={terminalSide} />
+    </div>
+  )
+}
+
+function PreviewViewport({ url, mode, title }: { url: string; mode: 'desktop' | 'mobile'; title: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  const baseWidth = 390
+  const baseHeight = 844
+
+  useEffect(() => {
+    if (mode === 'desktop') return
+    const element = containerRef.current
+    if (!element) return
+
+    const update = () => {
+      const { clientWidth, clientHeight } = element
+      const next = Math.min(clientWidth / baseWidth, clientHeight / baseHeight)
+      setScale(Number.isFinite(next) ? Math.max(0.1, next) : 1)
+    }
+
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [mode])
+
+  if (mode === 'desktop') {
+    return (
+      <div className="h-full w-full overflow-hidden bg-neutral-950">
+        <iframe src={url} className="h-full w-full border-0" title={title} />
+      </div>
+    )
+  }
+
+  return (
+    <div ref={containerRef} className="h-full w-full overflow-hidden bg-neutral-950">
+      <div className="flex h-full items-start justify-center pt-3">
+        <div
+          style={{
+            width: `${baseWidth}px`,
+            height: `${baseHeight}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center',
+          }}
+          className="overflow-hidden rounded-md border border-neutral-800 bg-white shadow-2xl"
+        >
+          <iframe src={url} className="h-full w-full border-0" title={title} />
+        </div>
+      </div>
     </div>
   )
 }

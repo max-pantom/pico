@@ -7,12 +7,12 @@
 import { spawn, execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { BrowserWindow } from 'electron'
 import { emit } from './eventBus'
 import { getAuth } from './secureStore'
+import { safeSend } from './safeSend'
 
 function sendToTerminal(text: string): void {
-  BrowserWindow.getAllWindows()[0]?.webContents?.send('preview:terminal', text)
+  safeSend('preview:terminal', text)
 }
 
 function ensureGitRepo(cwd: string): void {

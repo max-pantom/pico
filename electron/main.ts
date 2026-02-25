@@ -8,6 +8,7 @@ import { registerAuthHandlers } from './auth'
 import { registerWorkspaceHandlers } from './workspace'
 import { registerCodexHandlers } from './codex'
 import { registerRunHandlers } from './run'
+import { safeSend } from './safeSend'
 
 const isDev = process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL
 const isMac = process.platform === 'darwin'
@@ -36,12 +37,8 @@ const mainStore = new Store<MainStore>({
   },
 })
 
-function getMainWindow(): BrowserWindow | null {
-  return BrowserWindow.getAllWindows()[0] ?? null
-}
-
 function notifyRendererMenuAction(action: string): void {
-  getMainWindow()?.webContents.send('menu:action', action)
+  safeSend('menu:action', action)
 }
 
 function buildAppMenu(): Menu {

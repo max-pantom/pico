@@ -1,6 +1,7 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import { spawn } from 'child_process'
 import { emit } from './eventBus'
+import { safeSend } from './safeSend'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import Store from 'electron-store'
@@ -93,8 +94,7 @@ export function registerWorkspaceHandlers(ipc: typeof ipcMain): void {
     const side = params.side ?? 'baseline'
     if (!cmd) return
 
-    const win = BrowserWindow.getAllWindows()[0]
-    const send = (text: string) => win?.webContents?.send('preview:terminal', text)
+    const send = (text: string) => safeSend('preview:terminal', text)
     send(`\n$ ${cmd}\n`)
 
     const localhostRe = /https?:\/\/localhost:(\d+)/i

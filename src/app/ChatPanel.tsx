@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * ChatPanel - Chat-style UI with messages above, input at bottom.
  * Supports @agent and @pico mentions to direct requests.
@@ -89,7 +90,7 @@ export function ChatPanel({
   }
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
   }, [messages.length])
 
   const handleSend = () => {

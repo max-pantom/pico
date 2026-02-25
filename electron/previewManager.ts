@@ -13,13 +13,12 @@ import { connect } from 'net'
 import getPort from 'get-port'
 import { emit } from './eventBus'
 import { getSelectedPath } from './workspace'
-import { BrowserWindow } from 'electron'
+import { safeSend } from './safeSend'
 
 const WORKSPACE_PREVIEW_PORT = 5174
 
 function sendTerminalOutput(text: string): void {
-  const win = BrowserWindow.getAllWindows()[0]
-  win?.webContents?.send('preview:terminal', text)
+  safeSend('preview:terminal', text)
 }
 
 function waitForServer(port: number, maxWaitMs: number): Promise<void> {

@@ -104,6 +104,39 @@ export interface PicoStreamingResult {
   critic2: CriticOutput | null
   archetype: string
   seedFamily: string
+  codexInstruction: string
+}
+
+function buildCodexInstruction(
+  patchPlan: DirectorOutput,
+  critic: CriticOutput,
+  instruction?: string,
+): string {
+  const requested = instruction?.trim() ? `User request:\n- ${instruction.trim()}\n\n` : ''
+  const planLines = (patchPlan.patch_plan ?? [])
+    .sort((a, b) => a.priority - b.priority)
+    .map((a) => `- [${a.priority}] ${a.target}: ${a.instruction}`)
+    .join('\n')
+  const a11yLines = (patchPlan.accessibility_fixes ?? []).map((f) => `- ${f}`).join('\n')
+  const guardrails = (critic.non_negotiables ?? []).map((n) => `- ${n}`).join('\n')
+
+  return [
+    'Apply the following design changes directly in the existing project files.',
+    'Do not start a new app. Update current files in place and keep app behavior intact.',
+    'Prefer editing src/App.tsx and nearby UI files only unless required.',
+    '',
+    requested,
+    'Patch plan:',
+    planLines || '- No patch actions listed; improve hierarchy, spacing, and clarity based on critic findings.',
+    '',
+    'Accessibility fixes:',
+    a11yLines || '- Keep AA contrast and visible focus indicators.',
+    '',
+    'Non-negotiables:',
+    guardrails || '- Preserve existing product intent.',
+    '',
+    'After edits, print the final updated TSX code block for the primary UI file.',
+  ].join('\n')
 }
 
 export async function runPicoStreaming(
@@ -128,7 +161,16 @@ export async function runPicoStreaming(
   emit(runId, { source: 'pico', kind: 'status', stage: 'critic', message: 'Critic evaluating...' })
   const criticUser = buildCriticUserInput(intent, archetypeStr, seedDirective, baselineCode, instruction)
   const criticText = await callLLMNode(PICO_SYSTEM, criticUser)
-  if (cancelRef.cancelled) return { improvedCode: baselineCode, critic1: {} as CriticOutput, critic2: null, archetype: archetypeStr, seedFamily: seed.family }
+  if (cancelRef.cancelled) {
+    return {
+      improvedCode: baselineCode,
+      critic1: {} as CriticOutput,
+      critic2: null,
+      archetype: archetypeStr,
+      seedFamily: seed.family,
+      codexInstruction: '',
+    }
+  }
   const critic1 = parseJSON<CriticOutput>(extractJSON(criticText), 'critic')
   emit(runId, { source: 'pico', kind: 'code', stage: 'critic', message: 'Critic complete', meta: { score: critic1.score } })
 
@@ -139,12 +181,28 @@ export async function runPicoStreaming(
 
   if (critic1.verdict === 'pass') {
     emit(runId, { source: 'pico', kind: 'status', stage: 'done', message: 'Critic passed, no rewrite needed' })
-    return { improvedCode: baselineCode, critic1, critic2: null, archetype: archetypeStr, seedFamily: seed.family }
+    return {
+      improvedCode: baselineCode,
+      critic1,
+      critic2: null,
+      archetype: archetypeStr,
+      seedFamily: seed.family,
+      codexInstruction: 'No major changes required. Keep current implementation and only polish minor spacing/contrast issues.',
+    }
   }
 
   emit(runId, { source: 'pico', kind: 'status', stage: 'direct', message: 'Director planning fixes...' })
   const directorText = await callLLMNode(PICO_SYSTEM, buildDirectorUserInput(critic1, instruction))
-  if (cancelRef.cancelled) return { improvedCode: baselineCode, critic1, critic2: null, archetype: archetypeStr, seedFamily: seed.family }
+  if (cancelRef.cancelled) {
+    return {
+      improvedCode: baselineCode,
+      critic1,
+      critic2: null,
+      archetype: archetypeStr,
+      seedFamily: seed.family,
+      codexInstruction: '',
+    }
+  }
   const patchPlan = parseJSON<DirectorOutput>(extractJSON(directorText), 'director')
   if (patchPlan.patch_plan?.length) {
     const fixes = patchPlan.patch_plan.map((a) => `✓ ${a.instruction?.slice(0, 60) || a.action}`).join('\n')
@@ -154,15 +212,42 @@ export async function runPicoStreaming(
   emit(runId, { source: 'pico', kind: 'status', stage: 'rewrite', message: 'Rebuilding layout…' })
   const rewriterUser = buildRewriterUserInput(baselineCode, patchPlan, critic1.non_negotiables ?? [])
   const improvedText = await callLLMNode(PICO_SYSTEM, rewriterUser)
-  if (cancelRef.cancelled) return { improvedCode: baselineCode, critic1, critic2: null, archetype: archetypeStr, seedFamily: seed.family }
+  if (cancelRef.cancelled) {
+    return {
+      improvedCode: baselineCode,
+      critic1,
+      critic2: null,
+      archetype: archetypeStr,
+      seedFamily: seed.family,
+      codexInstruction: '',
+    }
+  }
   const improvedCode = improvedText.replace(/^```(?:tsx|ts|jsx|js)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
   emit(runId, { source: 'pico', kind: 'code', stage: 'rewrite', message: 'Rewrite complete', meta: { length: improvedCode.length } })
 
   emit(runId, { source: 'pico', kind: 'status', stage: 'critic', message: 'Verifying improvements…' })
   const critic2Text = await callLLMNode(PICO_SYSTEM, buildCriticUserInput(intent, archetypeStr, seedDirective, improvedCode, instruction))
-  if (cancelRef.cancelled) return { improvedCode, critic1, critic2: null, archetype: archetypeStr, seedFamily: seed.family }
+  if (cancelRef.cancelled) {
+    return {
+      improvedCode,
+      critic1,
+      critic2: null,
+      archetype: archetypeStr,
+      seedFamily: seed.family,
+      codexInstruction: '',
+    }
+  }
   const critic2 = parseJSON<CriticOutput>(extractJSON(critic2Text), 'critic')
   emit(runId, { source: 'pico', kind: 'status', stage: 'done', message: 'Done.' })
 
-  return { improvedCode, critic1, critic2, archetype: archetypeStr, seedFamily: seed.family }
+  const codexInstruction = buildCodexInstruction(patchPlan, critic1, instruction)
+
+  return {
+    improvedCode,
+    critic1,
+    critic2,
+    archetype: archetypeStr,
+    seedFamily: seed.family,
+    codexInstruction,
+  }
 }

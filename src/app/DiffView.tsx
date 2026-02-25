@@ -1,5 +1,4 @@
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { CodeDisplay } from './CodeDisplay.tsx'
 
 interface DiffViewProps {
   baseline: string
@@ -9,6 +8,8 @@ interface DiffViewProps {
 }
 
 export function DiffView({ baseline, improved, filename, onClose }: DiffViewProps) {
+  const isHTML = baseline.trim().startsWith('<!') || baseline.trim().startsWith('<html')
+  const lang = isHTML ? 'html' : 'tsx'
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950">
       <div className="shrink-0 flex items-center justify-between border-b border-neutral-800 px-4 py-3">
@@ -24,27 +25,13 @@ export function DiffView({ baseline, improved, filename, onClose }: DiffViewProp
         <div className="flex flex-col min-w-0">
           <p className="shrink-0 text-xs text-neutral-500 mb-2">Baseline</p>
           <div className="flex-1 rounded-lg border border-neutral-800 overflow-hidden">
-            <SyntaxHighlighter
-              language="tsx"
-              style={oneDark}
-              showLineNumbers
-              customStyle={{ margin: 0, fontSize: '11px', background: '#121214', minHeight: '100%' }}
-            >
-              {baseline}
-            </SyntaxHighlighter>
+            <CodeDisplay code={baseline} language={lang} />
           </div>
         </div>
         <div className="flex flex-col min-w-0">
           <p className="shrink-0 text-xs text-neutral-500 mb-2">Improved</p>
           <div className="flex-1 rounded-lg border border-neutral-800 overflow-hidden">
-            <SyntaxHighlighter
-              language="tsx"
-              style={oneDark}
-              showLineNumbers
-              customStyle={{ margin: 0, fontSize: '11px', background: '#121214', minHeight: '100%' }}
-            >
-              {improved}
-            </SyntaxHighlighter>
+            <CodeDisplay code={improved} language={lang} />
           </div>
         </div>
       </div>

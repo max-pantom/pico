@@ -3,24 +3,36 @@
  * Pico runs only when user presses Improve — a single design audit pass, not a loop.
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import { randomUUID } from 'crypto'
+import { readFile } from 'fs/promises'
+import { join } from 'path'
 import { emit, subscribeAll } from './eventBus'
 import { runCodexStreaming } from './codexStreaming'
 import { runPicoStreaming } from './picoStreaming'
 import { previewManager } from './previewManager'
 import { getSelectedPath } from './workspace'
+import { safeSend } from './safeSend'
 import type { StreamEvent } from '../src/types/stream'
 import type { RunStartParams, RunStartResult, RunImproveParams, RunImproveResult } from '../src/types/stream'
 
 const activeRuns = new Map<string, { cancel: () => void }>()
 
-function getWin() {
-  return BrowserWindow.getAllWindows()[0] ?? null
+function forwardToRenderer(event: StreamEvent) {
+  safeSend('run:event', event)
 }
 
-function forwardToRenderer(event: StreamEvent) {
-  getWin()?.webContents.send('run:event', event)
+async function readWorkspacePrimaryCode(workspacePath: string): Promise<string> {
+  const candidates = ['src/App.tsx', 'src/main.tsx', 'index.html']
+  for (const relativePath of candidates) {
+    try {
+      const content = await readFile(join(workspacePath, relativePath), 'utf-8')
+      if (content.trim()) return content
+    } catch {
+      // continue
+    }
+  }
+  return ''
 }
 
 export function registerRunHandlers(ipc: typeof ipcMain): void {
@@ -93,12 +105,13 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
 
   ipc.handle('run:improve', async (_: unknown, params: RunImproveParams): Promise<RunImproveResult> => {
     const { runId, baselineCode, prompt, instruction, seedpack } = params
+    const workspacePath = getSelectedPath() ?? process.cwd()
     const cancelRef = { cancelled: false }
     activeRuns.set(runId, { cancel: () => { cancelRef.cancelled = true } })
 
     try {
       emit(runId, { source: 'pico', kind: 'status', stage: 'critic', message: 'Reviewing interface…' })
-      const { improvedCode, critic1, critic2, archetype } = await runPicoStreaming(
+      const { critic1, critic2, archetype, codexInstruction } = await runPicoStreaming(
         runId,
         baselineCode,
         prompt,
@@ -108,10 +121,35 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
       )
       if (cancelRef.cancelled) return { success: false, error: 'Cancelled' }
 
+      emit(runId, {
+        source: 'pico',
+        kind: 'code',
+        stage: 'direct',
+        message: 'Pico instruction plan',
+        meta: { codexInstruction },
+      })
+
+      emit(runId, {
+        source: 'codex',
+        kind: 'status',
+        stage: 'rewrite',
+        message: 'Applying Pico instructions in workspace...',
+      })
+
+      const applyPrompt = [
+        `Original request:\n${prompt}`,
+        '',
+        'Pico instructions:',
+        codexInstruction,
+      ].join('\n')
+
+      const codexOutputCode = await runCodexStreaming(runId, applyPrompt, workspacePath, cancelRef)
+      if (cancelRef.cancelled) return { success: false, error: 'Cancelled' }
+      const improvedCode = (await readWorkspacePrimaryCode(workspacePath)) || codexOutputCode || baselineCode
+
       try {
-        const wsPath = getSelectedPath()
-        emit(runId, { source: 'system', kind: 'status', stage: 'build', message: wsPath ? 'Updating preview from output folder...' : 'Spinning improved preview...' })
-        await previewManager.spin(runId, 'improved', { 'App.tsx': improvedCode }, wsPath)
+        emit(runId, { source: 'system', kind: 'status', stage: 'build', message: 'Updating preview from output folder...' })
+        await previewManager.spin(runId, 'improved', { 'App.tsx': improvedCode }, workspacePath)
       } catch (e) {
         emit(runId, { source: 'system', kind: 'error', stage: 'build', message: `Improved preview: ${e instanceof Error ? e.message : String(e)}` })
       }
@@ -160,18 +198,15 @@ export function registerRunHandlers(ipc: typeof ipcMain): void {
     if (!code?.trim()) return
     if (workspacePath) {
       previewManager.writeToWorkspace(workspacePath, { 'App.tsx': code })
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) {
-        win.webContents.send('run:event', {
-          runId,
-          ts: Date.now(),
-          source: 'system',
-          kind: 'preview',
-          stage: 'build',
-          message: 'Preview updated',
-          meta: { port: 5174, side: 'baseline' },
-        })
-      }
+      safeSend('run:event', {
+        runId,
+        ts: Date.now(),
+        source: 'system',
+        kind: 'preview',
+        stage: 'build',
+        message: 'Preview updated',
+        meta: { port: 5174, side: 'baseline' },
+      })
     } else {
       previewManager.stop(runId)
       try {

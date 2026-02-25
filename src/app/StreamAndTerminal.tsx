@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { StreamEvent } from '../types/stream'
 
-export function StreamAndTerminal({ events, workspacePath, terminalSide = 'baseline' }: { events: StreamEvent[]; workspacePath?: string | null; terminalSide?: 'baseline' | 'improved' }) {
+export function StreamAndTerminal({ events, workspacePath, terminalSide: _terminalSide = 'baseline' }: { events: StreamEvent[]; workspacePath?: string | null; terminalSide?: 'baseline' | 'improved' }) {
+  void _terminalSide
   const scrollRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<HTMLDivElement>(null)
   const [terminalOutput, setTerminalOutput] = useState<string[]>([])
@@ -92,7 +93,7 @@ export function StreamAndTerminal({ events, workspacePath, terminalSide = 'basel
                   e.preventDefault()
                   const cmd = terminalCommand.trim()
                   if (cmd) {
-                    window.pico!.preview!.runCommand({ command: cmd, cwd: workspacePath ?? undefined, side: terminalSide })
+                    window.pico!.preview!.runCommand({ command: cmd, cwd: workspacePath ?? undefined })
                     setTerminalCommand('')
                   }
                 }}

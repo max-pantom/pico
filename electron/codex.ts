@@ -3,9 +3,10 @@
  * Spawns `codex` with the user's prompt. Requires Codex CLI to be installed.
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import { getAuth } from './secureStore'
+import { safeSend } from './safeSend'
 
 function getCodexEnv(): NodeJS.ProcessEnv {
   const auth = getAuth()
@@ -21,8 +22,6 @@ function getCodexEnv(): NodeJS.ProcessEnv {
 
 export function registerCodexHandlers(ipc: typeof ipcMain): void {
   ipc.handle('codex:run', async (_: unknown, prompt: string, workspacePath: string) => {
-    const win = BrowserWindow.getAllWindows()[0] ?? null
-
     return new Promise<string>((resolve, reject) => {
       const cwd = workspacePath || process.cwd()
       const proc = spawn('codex', ['exec', '--full-auto', '-C', cwd, prompt], {
@@ -37,13 +36,13 @@ export function registerCodexHandlers(ipc: typeof ipcMain): void {
       proc.stdout?.on('data', (chunk: Buffer) => {
         const text = chunk.toString()
         stdout += text
-        win?.webContents.send('codex:progress', { type: 'stdout', data: text })
+        safeSend('codex:progress', { type: 'stdout', data: text })
       })
 
       proc.stderr?.on('data', (chunk: Buffer) => {
         const text = chunk.toString()
         stderr += text
-        win?.webContents.send('codex:progress', { type: 'stderr', data: text })
+        safeSend('codex:progress', { type: 'stderr', data: text })
       })
 
       proc.on('close', (code) => {
